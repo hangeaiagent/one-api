@@ -12,4 +12,8 @@ var ModelList = []string{
 	"gemini-2.0-flash-lite-preview-02-05",
 	"gemini-2.0-flash-thinking-exp-01-21",
 	"gemini-2.0-pro-exp-02-05",
+	// Gemini 3.0 models
+	"gemini-3-pro-preview",
+	"gemini-3-pro-image-preview",
+	"gemini-3-flash-preview",
 }
