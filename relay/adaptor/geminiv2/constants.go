@@ -16,4 +16,6 @@ var ModelList = []string{
 	"gemini-3-pro-preview",
 	"gemini-3-pro-image-preview",
 	"gemini-3-flash-preview",
+	// Gemini 3.1 models
+	"gemini-3.1-pro-preview",
 }

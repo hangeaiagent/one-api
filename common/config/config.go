@@ -100,6 +100,13 @@ var PreConsumedQuota int64 = 500
 var ApproximateTokenEnabled = false
 var RetryTimes = 0
 
+// 429 错误处理配置
+var Channel429DisableDuration = env.Int("CHANNEL_429_DISABLE_DURATION", 5*60) // 429 错误临时禁用时间（秒），默认 5 分钟
+var RetryBackoffEnabled = env.Bool("RETRY_BACKOFF_ENABLED", true)             // 是否启用指数退避重试
+var RetryBackoffBase = env.Int("RETRY_BACKOFF_BASE", 1)                       // 重试基础延迟（秒）
+var RetryBackoffMax = env.Int("RETRY_BACKOFF_MAX", 10)                        // 重试最大延迟（秒）
+var Channel429AutoDisable = env.Bool("CHANNEL_429_AUTO_DISABLE", true)        // 是否自动临时禁用返回 429 的渠道
+
 var RootUserEmail = ""
 
 var IsMasterNode = os.Getenv("NODE_TYPE") != "slave"

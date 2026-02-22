@@ -16,6 +16,15 @@ services:
       - REDIS_CONN_STRING=redis://redis
       - SESSION_SECRET=random_string  # 修改为随机字符串
       - TZ=Asia/Shanghai
+      # 限流提速配置（可根据需求调整）
+      - GLOBAL_API_RATE_LIMIT=1000  # API 限流：1000 次/3分钟（默认 480）
+      - GLOBAL_WEB_RATE_LIMIT=500   # Web 限流：500 次/3分钟（默认 240）
+      # 429 错误优化配置（已实现，推荐启用）
+      - CHANNEL_429_AUTO_DISABLE=true      # 自动临时禁用返回 429 的渠道
+      - CHANNEL_429_DISABLE_DURATION=300   # 429 错误临时禁用时间：5 分钟
+      - RETRY_BACKOFF_ENABLED=true         # 启用指数退避重试
+      - RETRY_BACKOFF_BASE=1               # 重试基础延迟：1 秒
+      - RETRY_BACKOFF_MAX=10               # 重试最大延迟：10 秒
 #      - NODE_TYPE=slave  # 多机部署时从节点取消注释该行
 #      - SYNC_FREQUENCY=60  # 需要定期从数据库加载数据时取消注释该行
 #      - FRONTEND_BASE_URL=https://openai.justsong.cn  # 多机部署时从节点取消注释该行

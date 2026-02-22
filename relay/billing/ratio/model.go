@@ -135,7 +135,9 @@ var ModelRatio = map[string]float64{
 	"gemini-2.0-flash-lite-preview-02-05": 0.075 * MILLI_USD,
 	"gemini-2.0-flash-thinking-exp-01-21": 0.075 * MILLI_USD,
 	"gemini-2.0-pro-exp-02-05":            1.25 * MILLI_USD,
-	"aqa":                                 1,
+	// Gemini 3.1 models - https://ai.google.dev/pricing
+	"gemini-3.1-pro-preview": 1.25 * MILLI_USD, // $1.25/1M tokens (same tier as gemini-2.0-pro)
+	"aqa":                    1,
 	// https://open.bigmodel.cn/pricing
 	"glm-zero-preview": 0.01 * RMB,
 	"glm-4-plus":       0.05 * RMB,

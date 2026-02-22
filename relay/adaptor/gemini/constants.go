@@ -23,6 +23,8 @@ var ModelsSupportSystemInstruction = []string{
 	"gemini-3-pro-preview",
 	"gemini-3-pro-image-preview",
 	"gemini-3-flash-preview",
+	// Gemini 3.1 models support system instruction
+	"gemini-3.1-pro-preview",
 }
 
 // IsModelSupportSystemInstruction check if the model support system instruction.

@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common"
@@ -67,12 +69,34 @@ func Relay(c *gin.Context) {
 		logger.Errorf(ctx, "relay error happen, status code is %d, won't retry in this case", bizErr.StatusCode)
 		retryTimes = 0
 	}
+	
+	// 如果是 429 错误，记录到缓存
+	if bizErr.StatusCode == http.StatusTooManyRequests {
+		monitor.RecordChannel429(channelId)
+	}
+	
 	for i := retryTimes; i > 0; i-- {
+		// 指数退避延迟
+		if config.RetryBackoffEnabled && i < retryTimes {
+			backoffDelay := calculateBackoffDelay(retryTimes-i, config.RetryBackoffBase, config.RetryBackoffMax)
+			if backoffDelay > 0 {
+				logger.Infof(ctx, "waiting %d seconds before retry (attempt %d/%d)", backoffDelay, retryTimes-i+1, retryTimes)
+				time.Sleep(time.Duration(backoffDelay) * time.Second)
+			}
+		}
+		
 		channel, err := dbmodel.CacheGetRandomSatisfiedChannel(group, originalModel, i != retryTimes)
 		if err != nil {
 			logger.Errorf(ctx, "CacheGetRandomSatisfiedChannel failed: %+v", err)
 			break
 		}
+		
+		// 跳过被 429 阻止的渠道
+		if monitor.IsChannel429Blocked(channel.Id) {
+			logger.Infof(ctx, "channel #%d is blocked due to recent 429 error, skipping", channel.Id)
+			continue
+		}
+		
 		logger.Infof(ctx, "using channel #%d to retry (remain times %d)", channel.Id, i)
 		if channel.Id == lastFailedChannelId {
 			continue
@@ -88,6 +112,11 @@ func Relay(c *gin.Context) {
 		lastFailedChannelId = channelId
 		channelName := c.GetString(ctxkey.ChannelName)
 		go processChannelRelayError(ctx, userId, channelId, channelName, *bizErr)
+		
+		// 如果重试时也遇到 429，记录到缓存
+		if bizErr.StatusCode == http.StatusTooManyRequests {
+			monitor.RecordChannel429(channelId)
+		}
 	}
 	if bizErr != nil {
 		if bizErr.StatusCode == http.StatusTooManyRequests {
@@ -126,9 +155,23 @@ func processChannelRelayError(ctx context.Context, userId int, channelId int, ch
 	// https://platform.openai.com/docs/guides/error-codes/api-errors
 	if monitor.ShouldDisableChannel(&err.Error, err.StatusCode) {
 		monitor.DisableChannel(channelId, channelName, err.Message)
+	} else if monitor.ShouldTemporarilyDisableChannelFor429(err.StatusCode) {
+		// 429 错误已经在上层记录，这里只需要记录监控指标
+		monitor.Emit(channelId, false)
+		logger.Infof(ctx, "channel #%d returned 429, will be temporarily blocked", channelId)
 	} else {
 		monitor.Emit(channelId, false)
 	}
+}
+
+// calculateBackoffDelay 计算指数退避延迟时间
+func calculateBackoffDelay(attempt int, baseDelay int, maxDelay int) int {
+	// 指数退避：baseDelay * 2^attempt
+	delay := baseDelay * int(math.Pow(2, float64(attempt)))
+	if delay > maxDelay {
+		delay = maxDelay
+	}
+	return delay
 }
 
 func RelayNotImplemented(c *gin.Context) {

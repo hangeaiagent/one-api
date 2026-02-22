@@ -1,0 +1,23 @@
+One-API 提速设置文档目录
+==========================
+
+文档文件：
+1. README.md - 本目录索引和说明
+2. 429_ERROR_ANALYSIS.md - 429 错误分析与优化方案
+3. 429_ERROR_SUMMARY.md - 429 错误优化总结
+4. 429_OPTIMIZATION_IMPLEMENTATION.md - 429 错误优化实现说明
+5. DEPLOY_SPEED_OPTIMIZATION.md - 完整部署提速方案
+6. QUICK_DEPLOY.md - 快速部署指南
+7. DEPLOY_NOW.md - 立即部署指南
+8. DEPLOY_MACOS.md - macOS 部署指南
+9. DEPLOY_IMMEDIATE.md - 立即部署步骤
+10. GROUP_RATE_LIMIT_EXPLANATION.md - 分组与限流关系说明
+
+脚本文件：
+1. deploy.sh - 自动部署脚本（支持多种部署方式）
+2. quick-deploy.sh - 快速部署脚本（macOS）
+
+快速开始：
+- 查看 README.md 了解文档结构
+- 运行 ./docs/提速设置/quick-deploy.sh 快速部署
+- 查看 DEPLOY_SPEED_OPTIMIZATION.md 获取详细说明

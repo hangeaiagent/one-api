@@ -63,6 +63,8 @@ func init() {
 		go metricSuccessConsumer()
 		go metricFailConsumer()
 	}
+	// 初始化 429 错误清理协程
+	init429Cleaner()
 }
 
 func Emit(channelId int, success bool) {
