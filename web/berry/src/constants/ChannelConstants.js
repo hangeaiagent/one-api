@@ -197,6 +197,12 @@ export const CHANNEL_OPTIONS = {
     value: 41,
     color: 'purple'
   },
+  52: {
+    key: 52,
+    text: 'Google Cloud TTS (Chirp)',
+    value: 52,
+    color: 'warning'
+  },
   8: {
     key: 8,
     text: '自定义渠道',
