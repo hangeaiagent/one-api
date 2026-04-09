@@ -66,6 +66,9 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 			MaxOutputTokens: textRequest.MaxTokens,
 		},
 	}
+	if IsModelSupportImageGeneration(textRequest.Model) {
+		geminiRequest.GenerationConfig.ResponseModalities = []string{"TEXT", "IMAGE"}
+	}
 	if textRequest.ResponseFormat != nil {
 		if mimeType, ok := mimeTypeMap[textRequest.ResponseFormat.Type]; ok {
 			geminiRequest.GenerationConfig.ResponseMimeType = mimeType
@@ -258,14 +261,43 @@ func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
 			if candidate.Content.Parts[0].FunctionCall != nil {
 				choice.Message.ToolCalls = getToolCalls(&candidate)
 			} else {
-				var builder strings.Builder
+				hasImage := false
 				for _, part := range candidate.Content.Parts {
-					if i > 0 {
-						builder.WriteString("\n")
+					if part.InlineData != nil {
+						hasImage = true
+						break
 					}
-					builder.WriteString(part.Text)
 				}
-				choice.Message.Content = builder.String()
+				if hasImage {
+					// Multimodal response: return as array of content parts
+					var contentParts []model.MessageContent
+					for _, part := range candidate.Content.Parts {
+						if part.InlineData != nil {
+							dataURI := fmt.Sprintf("data:%s;base64,%s", part.InlineData.MimeType, part.InlineData.Data)
+							contentParts = append(contentParts, model.MessageContent{
+								Type: model.ContentTypeImageURL,
+								ImageURL: &model.ImageURL{
+									Url: dataURI,
+								},
+							})
+						} else if part.Text != "" {
+							contentParts = append(contentParts, model.MessageContent{
+								Type: model.ContentTypeText,
+								Text: part.Text,
+							})
+						}
+					}
+					choice.Message.Content = contentParts
+				} else {
+					var builder strings.Builder
+					for j, part := range candidate.Content.Parts {
+						if j > 0 {
+							builder.WriteString("\n")
+						}
+						builder.WriteString(part.Text)
+					}
+					choice.Message.Content = builder.String()
+				}
 			}
 		} else {
 			choice.Message.Content = ""
@@ -278,8 +310,41 @@ func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
 
 func streamResponseGeminiChat2OpenAI(geminiResponse *ChatResponse) *openai.ChatCompletionsStreamResponse {
 	var choice openai.ChatCompletionsStreamResponseChoice
-	choice.Delta.Content = geminiResponse.GetResponseText()
-	//choice.FinishReason = &constant.StopFinishReason
+
+	// Check if response contains image data
+	hasImage := false
+	if len(geminiResponse.Candidates) > 0 && len(geminiResponse.Candidates[0].Content.Parts) > 0 {
+		for _, part := range geminiResponse.Candidates[0].Content.Parts {
+			if part.InlineData != nil {
+				hasImage = true
+				break
+			}
+		}
+	}
+
+	if hasImage {
+		var contentParts []model.MessageContent
+		for _, part := range geminiResponse.Candidates[0].Content.Parts {
+			if part.InlineData != nil {
+				dataURI := fmt.Sprintf("data:%s;base64,%s", part.InlineData.MimeType, part.InlineData.Data)
+				contentParts = append(contentParts, model.MessageContent{
+					Type: model.ContentTypeImageURL,
+					ImageURL: &model.ImageURL{
+						Url: dataURI,
+					},
+				})
+			} else if part.Text != "" {
+				contentParts = append(contentParts, model.MessageContent{
+					Type: model.ContentTypeText,
+					Text: part.Text,
+				})
+			}
+		}
+		choice.Delta.Content = contentParts
+	} else {
+		choice.Delta.Content = geminiResponse.GetResponseText()
+	}
+
 	var response openai.ChatCompletionsStreamResponse
 	response.Id = fmt.Sprintf("chatcmpl-%s", random.GetUUID())
 	response.Created = helper.GetTimestamp()

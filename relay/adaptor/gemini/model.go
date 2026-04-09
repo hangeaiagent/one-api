@@ -66,12 +66,27 @@ type ChatTools struct {
 }
 
 type ChatGenerationConfig struct {
-	ResponseMimeType string   `json:"responseMimeType,omitempty"`
-	ResponseSchema   any      `json:"responseSchema,omitempty"`
-	Temperature      *float64 `json:"temperature,omitempty"`
-	TopP             *float64 `json:"topP,omitempty"`
-	TopK             float64  `json:"topK,omitempty"`
-	MaxOutputTokens  int      `json:"maxOutputTokens,omitempty"`
-	CandidateCount   int      `json:"candidateCount,omitempty"`
-	StopSequences    []string `json:"stopSequences,omitempty"`
+	ResponseMimeType   string        `json:"responseMimeType,omitempty"`
+	ResponseSchema     any           `json:"responseSchema,omitempty"`
+	ResponseModalities []string      `json:"responseModalities,omitempty"`
+	SpeechConfig       *SpeechConfig `json:"speechConfig,omitempty"`
+	Temperature        *float64      `json:"temperature,omitempty"`
+	TopP               *float64      `json:"topP,omitempty"`
+	TopK               float64       `json:"topK,omitempty"`
+	MaxOutputTokens    int           `json:"maxOutputTokens,omitempty"`
+	CandidateCount     int           `json:"candidateCount,omitempty"`
+	StopSequences      []string      `json:"stopSequences,omitempty"`
+}
+
+// SpeechConfig for Gemini TTS
+type SpeechConfig struct {
+	VoiceConfig *VoiceConfig `json:"voiceConfig,omitempty"`
+}
+
+type VoiceConfig struct {
+	PrebuiltVoiceConfig *PrebuiltVoiceConfig `json:"prebuiltVoiceConfig,omitempty"`
+}
+
+type PrebuiltVoiceConfig struct {
+	VoiceName string `json:"voiceName"`
 }

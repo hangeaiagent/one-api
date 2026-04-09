@@ -20,6 +20,7 @@ const (
 	VertexAI
 	Proxy
 	Replicate
+	GoogleCloudTTS
 
 	Dummy // this one is only for count, do not add any channel after this
 )

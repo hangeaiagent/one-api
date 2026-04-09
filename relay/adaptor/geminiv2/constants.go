@@ -18,4 +18,7 @@ var ModelList = []string{
 	"gemini-3-flash-preview",
 	// Gemini 3.1 models
 	"gemini-3.1-pro-preview",
+	// Gemini 2.5 TTS models
+	"gemini-2.5-flash-tts",
+	"gemini-2.5-pro-tts",
 }

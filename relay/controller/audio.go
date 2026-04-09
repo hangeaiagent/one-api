@@ -18,6 +18,8 @@ import (
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
+	"github.com/songquanpeng/one-api/relay/adaptor/gcptts"
+	"github.com/songquanpeng/one-api/relay/adaptor/gemini"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/billing"
 	billingratio "github.com/songquanpeng/one-api/relay/billing/ratio"
@@ -48,8 +50,8 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return openai.ErrorWrapper(err, "invalid_json", http.StatusBadRequest)
 		}
 		audioModel = ttsRequest.Model
-		// Check if text is too long 4096
-		if len(ttsRequest.Input) > 4096 {
+		// Check if text is too long (skip for Gemini TTS which supports up to 32K tokens)
+		if len(ttsRequest.Input) > 4096 && channelType != channeltype.Gemini {
 			return openai.ErrorWrapper(errors.New("input is too long (over 4096 characters)"), "text_too_long", http.StatusBadRequest)
 		}
 	}
@@ -113,6 +115,88 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	modelMapping := c.GetStringMapString(ctxkey.ModelMapping)
 	if modelMapping != nil && modelMapping[audioModel] != "" {
 		audioModel = modelMapping[audioModel]
+	}
+
+	// Gemini TTS branch: convert OpenAI TTS to Gemini generateContent format
+	if relayMode == relaymode.AudioSpeech && channelType == channeltype.Gemini {
+		geminiReq := gemini.ConvertTTSRequest(ttsRequest)
+		jsonBody, jsonErr := json.Marshal(geminiReq)
+		if jsonErr != nil {
+			return openai.ErrorWrapper(jsonErr, "marshal_request_failed", http.StatusInternalServerError)
+		}
+
+		geminiBaseURL := channeltype.ChannelBaseURLs[channelType]
+		if c.GetString(ctxkey.BaseURL) != "" {
+			geminiBaseURL = c.GetString(ctxkey.BaseURL)
+		}
+		requestURL := fmt.Sprintf("%s/v1beta/models/%s:generateContent", geminiBaseURL, audioModel)
+
+		req, reqErr := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
+		if reqErr != nil {
+			return openai.ErrorWrapper(reqErr, "new_request_failed", http.StatusInternalServerError)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-goog-api-key", meta.APIKey)
+
+		resp, doErr := client.HTTPClient.Do(req)
+		if doErr != nil {
+			return openai.ErrorWrapper(doErr, "do_request_failed", http.StatusInternalServerError)
+		}
+
+		errWithStatus, _ := gemini.TTSHandler(c, resp)
+		if errWithStatus != nil {
+			return errWithStatus
+		}
+
+		succeed = true
+		quotaDelta := quota - preConsumedQuota
+		defer func(ctx context.Context) {
+			go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, channelId, modelRatio, groupRatio, audioModel, tokenName)
+		}(c.Request.Context())
+		return nil
+	}
+
+	// Google Cloud TTS (Chirp) branch: convert OpenAI TTS to Cloud TTS synthesize format
+	if relayMode == relaymode.AudioSpeech && channelType == channeltype.GoogleCloudTTS {
+		gcpReq := gcptts.ConvertTTSRequest(ttsRequest, audioModel)
+		jsonBody, jsonErr := json.Marshal(gcpReq)
+		if jsonErr != nil {
+			return openai.ErrorWrapper(jsonErr, "marshal_request_failed", http.StatusInternalServerError)
+		}
+
+		gcpBaseURL := channeltype.ChannelBaseURLs[channelType]
+		if c.GetString(ctxkey.BaseURL) != "" {
+			gcpBaseURL = c.GetString(ctxkey.BaseURL)
+		}
+		requestURL := fmt.Sprintf("%s/v1/text:synthesize?key=%s", gcpBaseURL, meta.APIKey)
+
+		req, reqErr := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
+		if reqErr != nil {
+			return openai.ErrorWrapper(reqErr, "new_request_failed", http.StatusInternalServerError)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, doErr := client.HTTPClient.Do(req)
+		if doErr != nil {
+			return openai.ErrorWrapper(doErr, "do_request_failed", http.StatusInternalServerError)
+		}
+
+		audioEncoding := gcptts.DefaultAudioEncoding
+		if enc, ok := gcptts.AudioEncodingMap[ttsRequest.ResponseFormat]; ok {
+			audioEncoding = enc
+		}
+
+		errWithStatus, _ := gcptts.TTSHandler(c, resp, audioEncoding)
+		if errWithStatus != nil {
+			return errWithStatus
+		}
+
+		succeed = true
+		quotaDelta := quota - preConsumedQuota
+		defer func(ctx context.Context) {
+			go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, channelId, modelRatio, groupRatio, audioModel, tokenName)
+		}(c.Request.Context())
+		return nil
 	}
 
 	baseURL := channeltype.ChannelBaseURLs[channelType]

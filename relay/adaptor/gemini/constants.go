@@ -39,3 +39,20 @@ func IsModelSupportSystemInstruction(model string) bool {
 
 	return false
 }
+
+// ModelsWithImageGeneration is the list of models that support image generation
+// via responseModalities: ["TEXT", "IMAGE"] in generationConfig.
+var ModelsWithImageGeneration = []string{
+	"gemini-2.0-flash-exp",
+	"gemini-3-pro-image-preview",
+}
+
+// IsModelSupportImageGeneration check if the model supports image generation output.
+func IsModelSupportImageGeneration(model string) bool {
+	for _, m := range ModelsWithImageGeneration {
+		if m == model {
+			return true
+		}
+	}
+	return false
+}

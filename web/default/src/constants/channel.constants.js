@@ -85,6 +85,7 @@ export const CHANNEL_OPTIONS = [
   { key: 44, text: 'SiliconFlow', value: 44, color: 'blue' },
   { key: 45, text: 'xAI', value: 45, color: 'blue' },
   { key: 46, text: 'Replicate', value: 46, color: 'blue' },
+  { key: 52, text: 'Google Cloud TTS (Chirp)', value: 52, color: 'orange' },
   {
     key: 8,
     text: '自定义渠道',

@@ -28,6 +28,7 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	if strings.Contains(meta.ActualModelName, "gemini-3.1") ||
 		strings.Contains(meta.ActualModelName, "gemini-3.0") ||
 		strings.Contains(meta.ActualModelName, "gemini-3-") ||
+		strings.Contains(meta.ActualModelName, "gemini-2.5") ||
 		strings.Contains(meta.ActualModelName, "gemini-2.0") ||
 		strings.Contains(meta.ActualModelName, "gemini-1.5") {
 		defaultVersion = "v1beta"

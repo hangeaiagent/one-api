@@ -75,6 +75,10 @@ var ModelRatio = map[string]float64{
 	"tts-1-1106":              7.5,
 	"tts-1-hd":                15, // $0.030 / 1K characters
 	"tts-1-hd-1106":           15,
+	// Google Cloud TTS - Chirp models
+	"chirp-3":         15, // $30/1M chars
+	"chirp-2":         8,  // $16/1M chars
+	"chirp_telephony": 8,  // $16/1M chars
 	"davinci":                 10,
 	"curie":                   10,
 	"babbage":                 10,
@@ -135,8 +139,15 @@ var ModelRatio = map[string]float64{
 	"gemini-2.0-flash-lite-preview-02-05": 0.075 * MILLI_USD,
 	"gemini-2.0-flash-thinking-exp-01-21": 0.075 * MILLI_USD,
 	"gemini-2.0-pro-exp-02-05":            1.25 * MILLI_USD,
+	// Gemini 3.0 models - https://ai.google.dev/pricing
+	"gemini-3-pro-preview":       1.25 * MILLI_USD,  // $1.25/1M tokens
+	"gemini-3-pro-image-preview": 1.25 * MILLI_USD,  // $1.25/1M tokens (image generation capable)
+	"gemini-3-flash-preview":     0.15 * MILLI_USD,  // $0.15/1M tokens (flash tier)
 	// Gemini 3.1 models - https://ai.google.dev/pricing
 	"gemini-3.1-pro-preview": 1.25 * MILLI_USD, // $1.25/1M tokens (same tier as gemini-2.0-pro)
+	// Gemini 2.5 TTS - per character pricing
+	"gemini-2.5-flash-tts": 0.06, // $0.12/1M chars
+	"gemini-2.5-pro-tts":   0.12, // $0.24/1M chars
 	"aqa":                    1,
 	// https://open.bigmodel.cn/pricing
 	"glm-zero-preview": 0.01 * RMB,
