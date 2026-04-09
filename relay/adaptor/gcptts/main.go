@@ -51,8 +51,16 @@ func resolveVoiceName(voice string, modelName string, languageCode string) strin
 	}
 
 	chirpVoice := voice
-	if mapped, ok := OpenAIVoiceMap[strings.ToLower(voice)]; ok {
-		chirpVoice = mapped
+	lowerVoice := strings.ToLower(voice)
+	// Use model-specific voice map
+	if modelName == "chirp-2" || modelName == "chirp_telephony" {
+		if mapped, ok := OpenAIVoiceMapChirp2[lowerVoice]; ok {
+			chirpVoice = mapped
+		}
+	} else {
+		if mapped, ok := OpenAIVoiceMapChirp3[lowerVoice]; ok {
+			chirpVoice = mapped
+		}
 	}
 
 	prefix := "Chirp3-HD"

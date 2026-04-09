@@ -13,14 +13,25 @@ const DefaultAudioEncoding = "MP3"
 // DefaultLanguageCode used when no language hint is provided
 const DefaultLanguageCode = "en-US"
 
-// OpenAIVoiceMap maps OpenAI voice names to Chirp voice names
-var OpenAIVoiceMap = map[string]string{
+// OpenAIVoiceMapChirp3 maps OpenAI voice names to Chirp 3 HD voice names
+var OpenAIVoiceMapChirp3 = map[string]string{
 	"alloy":   "Kore",
 	"echo":    "Charon",
 	"fable":   "Achernar",
 	"onyx":    "Fenrir",
 	"nova":    "Leda",
 	"shimmer": "Aoede",
+}
+
+// OpenAIVoiceMapChirp2 maps OpenAI voice names to Chirp 2 HD voice names
+// Chirp 2 only has 3 voices: D (male), F (female), O (female)
+var OpenAIVoiceMapChirp2 = map[string]string{
+	"alloy":   "F",
+	"echo":    "D",
+	"fable":   "O",
+	"onyx":    "D",
+	"nova":    "F",
+	"shimmer": "O",
 }
 
 // ModelVoicePrefix maps model names to voice name prefix patterns
