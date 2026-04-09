@@ -146,8 +146,8 @@ var ModelRatio = map[string]float64{
 	// Gemini 3.1 models - https://ai.google.dev/pricing
 	"gemini-3.1-pro-preview": 1.25 * MILLI_USD, // $1.25/1M tokens (same tier as gemini-2.0-pro)
 	// Gemini 2.5 TTS - per character pricing
-	"gemini-2.5-flash-tts": 0.06, // $0.12/1M chars
-	"gemini-2.5-pro-tts":   0.12, // $0.24/1M chars
+	"gemini-2.5-flash-preview-tts": 0.06, // $0.12/1M chars
+	"gemini-2.5-pro-preview-tts":   0.12, // $0.24/1M chars
 	"aqa":                    1,
 	// https://open.bigmodel.cn/pricing
 	"glm-zero-preview": 0.01 * RMB,
