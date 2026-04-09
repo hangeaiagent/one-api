@@ -20,14 +20,14 @@ func ConvertTTSRequest(ttsRequest openai.TextToSpeechRequest, modelName string) 
 		audioEncoding = enc
 	}
 
-	voiceName := resolveVoiceName(ttsRequest.Voice, modelName, DefaultLanguageCode)
+	voiceName, langCode := resolveVoiceName(ttsRequest.Voice, modelName, DefaultLanguageCode)
 
 	req := &SynthesizeRequest{
 		Input: SynthesisInput{
 			Text: ttsRequest.Input,
 		},
 		Voice: VoiceSelection{
-			LanguageCode: DefaultLanguageCode,
+			LanguageCode: langCode,
 			Name:         voiceName,
 		},
 		AudioConfig: AudioConfig{
@@ -42,12 +42,19 @@ func ConvertTTSRequest(ttsRequest openai.TextToSpeechRequest, modelName string) 
 	return req
 }
 
-// resolveVoiceName builds the full Google Cloud TTS voice name.
-// If the voice already contains "Chirp", it's treated as a full name and returned as-is.
+// resolveVoiceName builds the full Google Cloud TTS voice name and extracts the language code.
+// If the voice already contains "Chirp", it's treated as a full name — the language code
+// is extracted from it (e.g. "cmn-CN-Chirp3-HD-Kore" → lang "cmn-CN").
 // Otherwise, it maps OpenAI voice names and builds the full name like "en-US-Chirp3-HD-Kore".
-func resolveVoiceName(voice string, modelName string, languageCode string) string {
+func resolveVoiceName(voice string, modelName string, languageCode string) (string, string) {
 	if strings.Contains(voice, "Chirp") {
-		return voice
+		// Extract language code from full voice name: "{lang}-{region}-Chirp..."
+		// Find the position of "Chirp" and take everything before it (minus trailing dash)
+		idx := strings.Index(voice, "-Chirp")
+		if idx > 0 {
+			languageCode = voice[:idx]
+		}
+		return voice, languageCode
 	}
 
 	chirpVoice := voice
@@ -68,7 +75,7 @@ func resolveVoiceName(voice string, modelName string, languageCode string) strin
 		prefix = p
 	}
 
-	return fmt.Sprintf("%s-%s-%s", languageCode, prefix, chirpVoice)
+	return fmt.Sprintf("%s-%s-%s", languageCode, prefix, chirpVoice), languageCode
 }
 
 // TTSHandler handles Google Cloud TTS response: decodes base64 audioContent and writes to client
