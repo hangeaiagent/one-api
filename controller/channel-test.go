@@ -66,6 +66,11 @@ func parseTestResponse(resp string) (*openai.TextResponse, string, error) {
 }
 
 func testChannel(ctx context.Context, channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (responseMessage string, err error, openaiErr *relaymodel.Error) {
+	// Google Cloud TTS channels need a special test path
+	if channel.Type == channeltype.GoogleCloudTTS {
+		return testTTSChannel(ctx, channel, request)
+	}
+
 	startTime := time.Now()
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -292,6 +297,85 @@ func TestChannels(c *gin.Context) {
 		"message": "",
 	})
 	return
+}
+
+// testTTSChannel tests a Google Cloud TTS channel by sending a short synthesize request
+func testTTSChannel(ctx context.Context, channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (string, error, *relaymodel.Error) {
+	startTime := time.Now()
+	modelName := request.Model
+	if modelName == "" || !strings.Contains(channel.Models, modelName) {
+		modelNames := strings.Split(channel.Models, ",")
+		if len(modelNames) > 0 {
+			modelName = modelNames[0]
+		}
+	}
+
+	baseURL := channel.GetBaseURL()
+	if baseURL == "" {
+		baseURL = channeltype.ChannelBaseURLs[channel.Type]
+	}
+	requestURL := fmt.Sprintf("%s/v1/text:synthesize?key=%s", baseURL, channel.Key)
+
+	// Build a minimal TTS request
+	ttsBody := map[string]any{
+		"input": map[string]string{"text": "test"},
+		"voice": map[string]string{
+			"languageCode": "en-US",
+			"name":         "en-US-Chirp3-HD-Kore",
+		},
+		"audioConfig": map[string]string{
+			"audioEncoding": "MP3",
+		},
+	}
+	jsonData, err := json.Marshal(ttsBody)
+	if err != nil {
+		return "", err, nil
+	}
+
+	defer func() {
+		logContent := fmt.Sprintf("渠道 %s TTS测试成功", channel.Name)
+		if err != nil {
+			logContent = fmt.Sprintf("渠道 %s TTS测试失败，错误：%s", channel.Name, err.Error())
+		}
+		go model.RecordTestLog(ctx, &model.Log{
+			ChannelId:   channel.Id,
+			ModelName:   modelName,
+			Content:     logContent,
+			ElapsedTime: helper.CalcElapsedTime(startTime),
+		})
+	}()
+
+	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err, nil
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err, nil
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("TTS API returned status %d: %s", resp.StatusCode, string(respBody)), nil
+	}
+
+	// Check response has audioContent
+	var ttsResp map[string]string
+	if json.Unmarshal(respBody, &ttsResp) == nil {
+		if _, ok := ttsResp["audioContent"]; ok {
+			return fmt.Sprintf("TTS合成成功，音频数据长度：%d 字节", len(ttsResp["audioContent"])), nil, nil
+		}
+	}
+
+	return "TTS响应正常", nil, nil
 }
 
 func AutomaticallyTestChannels(frequency int) {
