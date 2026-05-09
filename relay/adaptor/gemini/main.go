@@ -170,10 +170,28 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		// OpenAI's tool_call schema doesn't carry this signature, so we cannot
 		// faithfully echo it.  Instead, drop assistant tool_call messages
 		// entirely and rely on the subsequent role:"tool" (functionResponse)
-		// to give Gemini context.  Gemini infers the function from the
-		// functionResponse.name and the original user query.
+		// to give Gemini context.
+
+		// Filter parts: drop entries with no usable data.  Empty Text + nil
+		// InlineData/FunctionCall/FunctionResponse serializes to {} which
+		// Gemini rejects ("data must be initialized").
+		filtered := parts[:0]
+		for _, p := range parts {
+			if p.Text != "" || p.InlineData != nil || p.FunctionCall != nil || p.FunctionResponse != nil {
+				filtered = append(filtered, p)
+			}
+		}
+		parts = filtered
+
+		// If the message has tool_calls and (after filtering) no other
+		// content, drop the message entirely — there is nothing useful to
+		// send to Gemini.
 		if len(message.ToolCalls) > 0 && len(parts) == 0 {
-			// Pure tool_call message with no text content — skip it.
+			continue
+		}
+		// If a message has no parts at all (e.g. empty assistant content
+		// with no tool_calls), skip it to avoid sending an empty Content.
+		if len(parts) == 0 {
 			continue
 		}
 		content.Parts = parts
