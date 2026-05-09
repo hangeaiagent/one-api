@@ -45,10 +45,19 @@ type FunctionCall struct {
 	Arguments    any    `json:"args"`
 }
 
+// FunctionResponse represents a tool execution result returned to Gemini.
+// Used to bridge OpenAI's role:"tool" messages to Gemini's functionResponse
+// part format. See https://ai.google.dev/api/rest/v1beta/Content#FunctionResponse
+type FunctionResponse struct {
+	Name     string         `json:"name"`
+	Response map[string]any `json:"response"`
+}
+
 type Part struct {
-	Text         string        `json:"text,omitempty"`
-	InlineData   *InlineData   `json:"inlineData,omitempty"`
-	FunctionCall *FunctionCall `json:"functionCall,omitempty"`
+	Text             string            `json:"text,omitempty"`
+	InlineData       *InlineData       `json:"inlineData,omitempty"`
+	FunctionCall     *FunctionCall     `json:"functionCall,omitempty"`
+	FunctionResponse *FunctionResponse `json:"functionResponse,omitempty"`
 }
 
 type ChatContent struct {

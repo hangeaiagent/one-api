@@ -96,7 +96,44 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		}
 	}
 	shouldAddDummyModelMessage := false
+	// Build a tool_call_id -> function_name index from prior assistant tool_calls
+	// so we can resolve the function name when converting role:"tool" messages.
+	toolCallNames := map[string]string{}
+	for _, m := range textRequest.Messages {
+		for _, tc := range m.ToolCalls {
+			if tc.Id != "" && tc.Function.Name != "" {
+				toolCallNames[tc.Id] = tc.Function.Name
+			}
+		}
+	}
 	for _, message := range textRequest.Messages {
+		// ── role:"tool" → Gemini functionResponse part ─────────────────
+		// OpenAI's tool result message carries {role:"tool", tool_call_id, content}.
+		// Gemini expects role:"user" with parts[0].functionResponse{name,response}.
+		if message.Role == "tool" {
+			fnName := toolCallNames[message.ToolCallId]
+			if fnName == "" && message.Name != nil {
+				fnName = *message.Name
+			}
+			if fnName == "" {
+				fnName = "unknown_function"
+			}
+			geminiRequest.Contents = append(geminiRequest.Contents, ChatContent{
+				Role: "user",
+				Parts: []Part{
+					{
+						FunctionResponse: &FunctionResponse{
+							Name: fnName,
+							Response: map[string]any{
+								"content": message.StringContent(),
+							},
+						},
+					},
+				},
+			})
+			continue
+		}
+
 		content := ChatContent{
 			Role: message.Role,
 			Parts: []Part{
@@ -126,6 +163,29 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 					},
 				})
 			}
+		}
+		// ── Assistant tool_calls → Gemini functionCall parts ───────────
+		// OpenAI's assistant message may carry tool_calls (the model's
+		// decision to invoke a tool).  Gemini expects role:"model" with
+		// parts containing functionCall objects.
+		for _, tc := range message.ToolCalls {
+			if tc.Function.Name == "" {
+				continue
+			}
+			var args any = tc.Function.Arguments
+			// OpenAI serializes arguments as a JSON string; Gemini wants an object.
+			if argStr, ok := args.(string); ok && argStr != "" {
+				var parsed any
+				if err := json.Unmarshal([]byte(argStr), &parsed); err == nil {
+					args = parsed
+				}
+			}
+			parts = append(parts, Part{
+				FunctionCall: &FunctionCall{
+					FunctionName: tc.Function.Name,
+					Arguments:    args,
+				},
+			})
 		}
 		content.Parts = parts
 
