@@ -360,6 +360,38 @@ func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
 func streamResponseGeminiChat2OpenAI(geminiResponse *ChatResponse) *openai.ChatCompletionsStreamResponse {
 	var choice openai.ChatCompletionsStreamResponseChoice
 
+	// ── functionCall part → OpenAI tool_calls (streaming) ─────────────
+	// Gemini returns functionCall directly in a part; the non-streaming
+	// path used to handle this but the streaming path silently dropped it,
+	// returning empty content and forcing the model into a no-tool answer.
+	if len(geminiResponse.Candidates) > 0 && len(geminiResponse.Candidates[0].Content.Parts) > 0 {
+		for _, part := range geminiResponse.Candidates[0].Content.Parts {
+			if part.FunctionCall != nil {
+				argsBytes, err := json.Marshal(part.FunctionCall.Arguments)
+				if err != nil {
+					argsBytes = []byte("{}")
+				}
+				choice.Delta.ToolCalls = append(choice.Delta.ToolCalls, model.Tool{
+					Id:   fmt.Sprintf("call_%s", random.GetUUID()),
+					Type: "function",
+					Function: model.Function{
+						Name:      part.FunctionCall.FunctionName,
+						Arguments: string(argsBytes),
+					},
+				})
+			}
+		}
+		if len(choice.Delta.ToolCalls) > 0 {
+			var response openai.ChatCompletionsStreamResponse
+			response.Id = fmt.Sprintf("chatcmpl-%s", random.GetUUID())
+			response.Created = helper.GetTimestamp()
+			response.Object = "chat.completion.chunk"
+			response.Model = "gemini"
+			response.Choices = []openai.ChatCompletionsStreamResponseChoice{choice}
+			return &response
+		}
+	}
+
 	// Check if response contains image data
 	hasImage := false
 	if len(geminiResponse.Candidates) > 0 && len(geminiResponse.Candidates[0].Content.Parts) > 0 {
