@@ -164,28 +164,17 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 				})
 			}
 		}
-		// ── Assistant tool_calls → Gemini functionCall parts ───────────
-		// OpenAI's assistant message may carry tool_calls (the model's
-		// decision to invoke a tool).  Gemini expects role:"model" with
-		// parts containing functionCall objects.
-		for _, tc := range message.ToolCalls {
-			if tc.Function.Name == "" {
-				continue
-			}
-			var args any = tc.Function.Arguments
-			// OpenAI serializes arguments as a JSON string; Gemini wants an object.
-			if argStr, ok := args.(string); ok && argStr != "" {
-				var parsed any
-				if err := json.Unmarshal([]byte(argStr), &parsed); err == nil {
-					args = parsed
-				}
-			}
-			parts = append(parts, Part{
-				FunctionCall: &FunctionCall{
-					FunctionName: tc.Function.Name,
-					Arguments:    args,
-				},
-			})
+		// ── Assistant tool_calls: SKIP, do not echo back ──────────────
+		// Gemini "thinking" models (gemini-3, gemini-2.5) require a
+		// thought_signature on every functionCall part the client sends back.
+		// OpenAI's tool_call schema doesn't carry this signature, so we cannot
+		// faithfully echo it.  Instead, drop assistant tool_call messages
+		// entirely and rely on the subsequent role:"tool" (functionResponse)
+		// to give Gemini context.  Gemini infers the function from the
+		// functionResponse.name and the original user query.
+		if len(message.ToolCalls) > 0 && len(parts) == 0 {
+			// Pure tool_call message with no text content — skip it.
+			continue
 		}
 		content.Parts = parts
 
