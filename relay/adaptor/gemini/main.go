@@ -80,14 +80,22 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	}
 	if textRequest.Tools != nil {
 		functions := make([]model.Function, 0, len(textRequest.Tools))
+		hasGoogleSearch := false
 		for _, tool := range textRequest.Tools {
-			functions = append(functions, tool.Function)
+			if tool.Type == "google_search" {
+				hasGoogleSearch = true
+			} else {
+				functions = append(functions, tool.Function)
+			}
 		}
-		geminiRequest.Tools = []ChatTools{
-			{
-				FunctionDeclarations: functions,
-			},
+		chatTools := ChatTools{}
+		if len(functions) > 0 {
+			chatTools.FunctionDeclarations = functions
 		}
+		if hasGoogleSearch {
+			chatTools.GoogleSearch = &GoogleSearch{}
+		}
+		geminiRequest.Tools = []ChatTools{chatTools}
 	} else if textRequest.Functions != nil {
 		geminiRequest.Tools = []ChatTools{
 			{
