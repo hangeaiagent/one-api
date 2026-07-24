@@ -4,55 +4,69 @@ import (
 	"github.com/songquanpeng/one-api/relay/adaptor/geminiv2"
 )
 
-// https://ai.google.dev/models/gemini
+// https://ai.google.dev/gemini-api/docs/models
 
 var ModelList = geminiv2.ModelList
 
-// ModelsSupportSystemInstruction is the list of models that support system instruction.
-//
-// https://cloud.google.com/vertex-ai/generative-ai/docs/learn/prompts/system-instructions
-var ModelsSupportSystemInstruction = []string{
-	// "gemini-1.0-pro-002",
-	// "gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-002",
-	// "gemini-1.5-flash-8b",
-	// "gemini-1.5-pro", "gemini-1.5-pro-001", "gemini-1.5-pro-002",
-	// "gemini-1.5-pro-experimental",
-	"gemini-2.0-flash", "gemini-2.0-flash-exp",
-	"gemini-2.0-flash-thinking-exp-01-21",
-	// Gemini 3.0 models support system instruction
-	"gemini-3-pro-preview",
-	"gemini-3-pro-image-preview",
-	"gemini-3-flash-preview",
-	// Gemini 3.1 models support system instruction
-	"gemini-3.1-pro-preview",
+// ModelCapability describes optional features a Gemini model supports.
+// Extend the struct (and modelCapabilities map below) when Google exposes
+// additional modalities.
+type ModelCapability struct {
+	SystemInstruction bool
+	ImageGeneration   bool
+	TTS               bool
 }
 
-// IsModelSupportSystemInstruction check if the model support system instruction.
-//
-// Because the main version of Go is 1.20, slice.Contains cannot be used
+// modelCapabilities is the single source of truth for Gemini model features.
+// Reference: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/prompts/system-instructions
+var modelCapabilities = map[string]ModelCapability{
+	// Gemini 2.0
+	"gemini-2.0-flash":                    {SystemInstruction: true},
+	"gemini-2.0-flash-exp":                {SystemInstruction: true, ImageGeneration: true},
+	"gemini-2.0-flash-thinking-exp-01-21": {SystemInstruction: true},
+
+	// Gemini 2.5 GA
+	"gemini-2.5-pro":        {SystemInstruction: true},
+	"gemini-2.5-flash":      {SystemInstruction: true},
+	"gemini-2.5-flash-lite": {SystemInstruction: true},
+
+	// Gemini 3.0 preview
+	"gemini-3-pro-preview":       {SystemInstruction: true},
+	"gemini-3-pro-image-preview": {SystemInstruction: true, ImageGeneration: true},
+	"gemini-3-flash-preview":     {SystemInstruction: true},
+
+	// Gemini 3.1
+	"gemini-3.1-pro-preview": {SystemInstruction: true},
+	"gemini-3.1-flash-lite":  {SystemInstruction: true},
+
+	// Gemini 3.5 GA (2026-07)
+	"gemini-3.5-flash":      {SystemInstruction: true},
+	"gemini-3.5-flash-lite": {SystemInstruction: true},
+
+	// Gemini 3.6 GA - workhorse
+	"gemini-3.6-flash": {SystemInstruction: true},
+
+	// TTS
+	"gemini-2.5-flash-preview-tts": {TTS: true},
+	"gemini-2.5-pro-preview-tts":   {TTS: true},
+	"gemini-3.1-flash-tts":         {TTS: true},
+}
+
+// IsModelSupportSystemInstruction reports whether the model accepts
+// systemInstruction. Kept as a top-level function because Go 1.20 lacks
+// slices.Contains and the code base cannot bump the minimum yet.
 func IsModelSupportSystemInstruction(model string) bool {
-	for _, m := range ModelsSupportSystemInstruction {
-		if m == model {
-			return true
-		}
-	}
-
-	return false
+	return modelCapabilities[model].SystemInstruction
 }
 
-// ModelsWithImageGeneration is the list of models that support image generation
-// via responseModalities: ["TEXT", "IMAGE"] in generationConfig.
-var ModelsWithImageGeneration = []string{
-	"gemini-2.0-flash-exp",
-	"gemini-3-pro-image-preview",
-}
-
-// IsModelSupportImageGeneration check if the model supports image generation output.
+// IsModelSupportImageGeneration reports whether the model can return image
+// parts via responseModalities: ["TEXT", "IMAGE"].
 func IsModelSupportImageGeneration(model string) bool {
-	for _, m := range ModelsWithImageGeneration {
-		if m == model {
-			return true
-		}
-	}
-	return false
+	return modelCapabilities[model].ImageGeneration
+}
+
+// IsModelSupportTTS reports whether the model produces speech via
+// responseModalities: ["AUDIO"].
+func IsModelSupportTTS(model string) bool {
+	return modelCapabilities[model].TTS
 }

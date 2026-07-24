@@ -23,14 +23,32 @@ type Adaptor struct {
 func (a *Adaptor) Init(meta *meta.Meta) {
 }
 
+// v1betaModelPrefixes lists model-name prefixes that must be routed through
+// Google's v1beta endpoint. Adding a new generation (e.g. gemini-4) only
+// requires appending one entry here.
+var v1betaModelPrefixes = []string{
+	"gemini-1.5",
+	"gemini-2.0",
+	"gemini-2.5",
+	"gemini-3-",
+	"gemini-3.0",
+	"gemini-3.1",
+	"gemini-3.5",
+	"gemini-3.6",
+}
+
+func requiresV1Beta(modelName string) bool {
+	for _, p := range v1betaModelPrefixes {
+		if strings.HasPrefix(modelName, p) {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	defaultVersion := config.GeminiVersion
-	if strings.Contains(meta.ActualModelName, "gemini-3.1") ||
-		strings.Contains(meta.ActualModelName, "gemini-3.0") ||
-		strings.Contains(meta.ActualModelName, "gemini-3-") ||
-		strings.Contains(meta.ActualModelName, "gemini-2.5") ||
-		strings.Contains(meta.ActualModelName, "gemini-2.0") ||
-		strings.Contains(meta.ActualModelName, "gemini-1.5") {
+	if requiresV1Beta(meta.ActualModelName) {
 		defaultVersion = "v1beta"
 	}
 

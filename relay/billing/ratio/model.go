@@ -144,10 +144,23 @@ var ModelRatio = map[string]float64{
 	"gemini-3-pro-image-preview": 1.25 * MILLI_USD,  // $1.25/1M tokens (image generation capable)
 	"gemini-3-flash-preview":     0.15 * MILLI_USD,  // $0.15/1M tokens (flash tier)
 	// Gemini 3.1 models - https://ai.google.dev/pricing
-	"gemini-3.1-pro-preview": 1.25 * MILLI_USD, // $1.25/1M tokens (same tier as gemini-2.0-pro)
-	// Gemini 2.5 TTS - per character pricing
+	"gemini-3.1-pro-preview": 1.25 * MILLI_USD, // $2.50/1M in avg (<200k tier), see docs/gemini-latest-upgrade-plan.md
+	"gemini-3.1-flash-lite":  0.125 * MILLI_USD, // $0.25/1M input (text/image/video)
+	// Gemini 2.5 GA - https://ai.google.dev/gemini-api/docs/pricing
+	"gemini-2.5-pro":        0.625 * MILLI_USD, // $1.25/1M input (<=200k tier)
+	"gemini-2.5-flash":      0.15 * MILLI_USD,  // $0.30/1M input (text/image/video)
+	"gemini-2.5-flash-lite": 0.05 * MILLI_USD,  // $0.10/1M input (text/image/video)
+	// Gemini 3.5 GA - https://ai.google.dev/gemini-api/docs/pricing
+	"gemini-3.5-flash":      0.75 * MILLI_USD, // $1.50/1M input
+	"gemini-3.5-flash-lite": 0.15 * MILLI_USD, // $0.30/1M input
+	// Gemini 3.6 GA - workhorse (2026-07-21)
+	"gemini-3.6-flash": 0.75 * MILLI_USD, // $1.50/1M input, $7.50/1M output
+	// Embeddings
+	"gemini-embedding-2": 0.05 * MILLI_USD,
+	// Gemini TTS - per character pricing
 	"gemini-2.5-flash-preview-tts": 0.06, // $0.12/1M chars
 	"gemini-2.5-pro-preview-tts":   0.12, // $0.24/1M chars
+	"gemini-3.1-flash-tts":         0.06, // preview pricing
 	"aqa":                    1,
 	// https://open.bigmodel.cn/pricing
 	"glm-zero-preview": 0.01 * RMB,

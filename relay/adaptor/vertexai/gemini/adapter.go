@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/songquanpeng/one-api/common/ctxkey"
 	"github.com/songquanpeng/one-api/relay/adaptor/gemini"
+	"github.com/songquanpeng/one-api/relay/adaptor/geminiv2"
 	"github.com/songquanpeng/one-api/relay/adaptor/openai"
 	"github.com/songquanpeng/one-api/relay/relaymode"
 
@@ -14,15 +15,18 @@ import (
 	"github.com/songquanpeng/one-api/relay/model"
 )
 
-var ModelList = []string{
-	"gemini-pro", "gemini-pro-vision",
+// vertexOnlyModels are model aliases only exposed via Vertex AI regions
+// (versioned -001/-002 snapshots, region-experimental names). Shared 2.x/3.x
+// IDs come from geminiv2.ModelList so upgrades touch a single source.
+var vertexOnlyModels = []string{
+	"gemini-pro-vision",
 	"gemini-exp-1206",
 	"gemini-1.5-pro-001", "gemini-1.5-pro-002",
 	"gemini-1.5-flash-001", "gemini-1.5-flash-002",
-	"gemini-2.0-flash-exp", "gemini-2.0-flash-001",
-	"gemini-2.0-flash-lite-preview-02-05",
-	"gemini-2.0-flash-thinking-exp-01-21",
+	"gemini-2.0-flash-001",
 }
+
+var ModelList = append(append([]string{}, vertexOnlyModels...), geminiv2.ModelList...)
 
 type Adaptor struct {
 }
