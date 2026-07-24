@@ -135,12 +135,58 @@ var ModelList = append(append([]string{}, vertexOnlyModels...), geminiv2.ModelLi
 
 | 项目 | 结果 |
 |---|---|
-| Go 语法审查 | ✅ 人工审查通过（`strings` 仍在使用、`geminiv2` 导入正确、无对已删除 exported var `ModelsSupportSystemInstruction/ModelsWithImageGeneration` 的外部引用） |
-| `go build ./...` | ⚠️ **未执行** — 本机无 Go 工具链（`go: command not found`）。建议在 CI 或有 Go 环境的机器上跑一次冒烟编译 |
-| `go test ./relay/adaptor/gemini/...` | ⚠️ 同上 |
-| 真实 API key 冒烟 | ⏸️ 待运维/QA 使用真实 Google API Key 验证 `gemini-3.6-flash`、`gemini-2.5-pro`、`gemini-3.5-flash-lite` 的 200 响应与计费 |
+| Go 语法审查 | ✅ 通过 |
+| `go build` | ✅ 通过（服务器 Go 1.22.5 编译，16.4s，产物 38.28 MB） |
+| `gofmt -l` | ✅ 通过 |
+| `/api/status` 探活 | ✅ 内网 HTTP 200 (0.001s)，外网 http://oneapi.gitagent.io HTTP 200 (1.66s) |
+| 新模型嵌入验证 | ✅ `strings one-api` 命中 gemini-3.6-flash / gemini-3.5-flash / gemini-2.5-pro / gemini-3.1-flash-lite / gemini-embedding-2 |
+| 真实 API key 冒烟 | ⏸️ 待运维/QA 触发 `gemini-3.6-flash` 与 `gemini-2.5-pro` 实调 |
 
-**部署提示**：合入 main 后，请在部署 pipeline 执行 `go build -o one-api ./` 并验证服务启动、`/api/channel/models` 返回值中包含新模型 ID。
+## 六、生产部署记录
+
+- **服务器**：`support@104.197.139.51`（GCE `instance-20251220-110506` / us-central1-c）
+- **代码目录**：`/mnt/disk-119/one-api`
+- **进程**：`nohup ./one-api --port 3000 --log-dir ./logs`，新 PID **1593093**（老 PID 1355243 已 kill）
+- **旧二进制备份**：`one-api.bak-20260724-003938`（38.27 MB, 2026-07-14 15:05 构建版）
+- **入口**：nginx → localhost:3000 → oneapi.gitagent.io
+
+### 6.1 服务器保留的生产定价（未提交到 GitHub，仅存在于服务器）
+
+服务器 `ratio/model.go` 相对 commit `427c85c` 额外应用了以下覆盖，包含一个关键的 169× 图像计费修复。这些改动**保留在服务器本地**，未推送到仓库：
+
+| 模型 | commit 值 | 服务器覆盖值 | 备注 |
+|---|---|---|---|
+| `gemini-2.0-flash-exp` | 0.075 | **0.15** | 与 `gemini-2.0-flash` 一致 |
+| `gemini-3-pro-preview` | 1.25 | **2.00** | Gemini 2.5 Pro tier |
+| `gemini-3-pro-image-preview` | 1.25 | **211** | **169× 图像 token 未计费修复** |
+| `gemini-3-flash-preview` | 0.15 | **0.50** | Gemini 2.5 Flash tier |
+| `gemini-3.1-pro-preview` | 1.25 | **2.00** | |
+| `gemini-3.5-flash` | 0.75 | **1.50** | 6× 输出倍率对齐 |
+| `gemini-embedding-2` | 0.05 | **0.20** | |
+| `gemini-embedding-001` | — | **0.15** | 服务器新增 |
+| `gemini-embedding-2-preview` | — | **0.20** | 服务器新增 |
+
+外加 `CompletionRatio` 表新增：
+- `gemini-2.0-flash*`: 4×
+- `gemini-3-*-preview`, `gemini-3.1-pro-preview`, `gemini-3.5-flash`: 6×
+- `gemini-embedding-*`: 0
+
+**下次升级注意**：`git pull` 前先 `git stash` 保留本地定价，pull 后用 `/tmp/apply-server-pricing.py`（已保留在服务器）幂等重放。
+
+### 6.2 部署 checklist（本次实际执行）
+
+1. ✅ 服务器 SSH `support@104.197.139.51 -i ~/.ssh/google_compute_engine`
+2. ✅ 备份 `/tmp/model.go.serverlocal.20260724-083509`, `/tmp/adaptor.go.serverlocal.20260724-083509`
+3. ✅ `git stash push -m 'pre-gemini36-upgrade-server-local-pricing'`
+4. ✅ `git pull origin main`（fast-forward 到 `427c85c`）
+5. ✅ `python3 /tmp/apply-server-pricing.py` 重放服务器定价
+6. ✅ `/usr/local/go/bin/gofmt -w relay/billing/ratio/model.go`
+7. ✅ `/usr/local/go/bin/go build -ldflags '-s -w' -o one-api.new ./`（16.4s）
+8. ✅ `cp one-api one-api.bak-20260724-003938 && mv one-api.new one-api`
+9. ✅ `kill 1355243`（PID 精确 kill，避免 `pkill -f` 的自我竞态）
+10. ✅ `setsid nohup ./one-api --port 3000 --log-dir ./logs ...`
+11. ✅ 等待 DB migration 完成（10s，logs 表加索引）
+12. ✅ 探活：内网 200 / 外网 200 / 二进制包含新模型 ID
 
 ---
 
