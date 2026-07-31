@@ -278,10 +278,11 @@ func (g *ChatResponse) GetResponseText() string {
 }
 
 type ChatCandidate struct {
-	Content       ChatContent        `json:"content"`
-	FinishReason  string             `json:"finishReason"`
-	Index         int64              `json:"index"`
-	SafetyRatings []ChatSafetyRating `json:"safetyRatings"`
+	Content           ChatContent        `json:"content"`
+	FinishReason      string             `json:"finishReason"`
+	Index             int64              `json:"index"`
+	SafetyRatings     []ChatSafetyRating `json:"safetyRatings"`
+	GroundingMetadata json.RawMessage    `json:"groundingMetadata,omitempty"`
 }
 
 type ChatSafetyRating struct {
@@ -315,6 +316,27 @@ func getToolCalls(candidate *ChatCandidate) []model.Tool {
 	}
 	toolCalls = append(toolCalls, toolCall)
 	return toolCalls
+}
+
+// buildMetadata surfaces Gemini google_search grounding data (webSearchQueries,
+// groundingChunks, groundingSupports, searchEntryPoint) on the OpenAI-compatible
+// response's top-level "metadata" envelope. Callers that don't use google_search
+// see nil → the field is omitted from the JSON body.
+//
+// "google_grounding" is a temporary alias kept for backward compatibility with
+// early integrations; plan to drop after 2026-08-31.
+func buildMetadata(response *ChatResponse) map[string]json.RawMessage {
+	if response == nil || len(response.Candidates) == 0 {
+		return nil
+	}
+	raw := response.Candidates[0].GroundingMetadata
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	return map[string]json.RawMessage{
+		"grounding":        raw,
+		"google_grounding": raw,
+	}
 }
 
 func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
@@ -380,6 +402,7 @@ func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
 		}
 		fullTextResponse.Choices = append(fullTextResponse.Choices, choice)
 	}
+	fullTextResponse.Metadata = buildMetadata(response)
 	return &fullTextResponse
 }
 
@@ -414,6 +437,7 @@ func streamResponseGeminiChat2OpenAI(geminiResponse *ChatResponse) *openai.ChatC
 			response.Object = "chat.completion.chunk"
 			response.Model = "gemini"
 			response.Choices = []openai.ChatCompletionsStreamResponseChoice{choice}
+			response.Metadata = buildMetadata(geminiResponse)
 			return &response
 		}
 	}
@@ -458,6 +482,7 @@ func streamResponseGeminiChat2OpenAI(geminiResponse *ChatResponse) *openai.ChatC
 	response.Object = "chat.completion.chunk"
 	response.Model = "gemini"
 	response.Choices = []openai.ChatCompletionsStreamResponseChoice{choice}
+	response.Metadata = buildMetadata(geminiResponse)
 	return &response
 }
 

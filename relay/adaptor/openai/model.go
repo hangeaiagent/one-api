@@ -1,6 +1,10 @@
 package openai
 
-import "github.com/songquanpeng/one-api/relay/model"
+import (
+	"encoding/json"
+
+	"github.com/songquanpeng/one-api/relay/model"
+)
 
 type TextContent struct {
 	Type string `json:"type,omitempty"`
@@ -95,6 +99,7 @@ type TextResponse struct {
 	Created     int64                `json:"created"`
 	Choices     []TextResponseChoice `json:"choices"`
 	model.Usage `json:"usage"`
+	Metadata    map[string]json.RawMessage `json:"metadata,omitempty"`
 }
 
 type EmbeddingResponseItem struct {
@@ -129,12 +134,13 @@ type ChatCompletionsStreamResponseChoice struct {
 }
 
 type ChatCompletionsStreamResponse struct {
-	Id      string                                `json:"id"`
-	Object  string                                `json:"object"`
-	Created int64                                 `json:"created"`
-	Model   string                                `json:"model"`
-	Choices []ChatCompletionsStreamResponseChoice `json:"choices"`
-	Usage   *model.Usage                          `json:"usage,omitempty"`
+	Id       string                                `json:"id"`
+	Object   string                                `json:"object"`
+	Created  int64                                 `json:"created"`
+	Model    string                                `json:"model"`
+	Choices  []ChatCompletionsStreamResponseChoice `json:"choices"`
+	Usage    *model.Usage                          `json:"usage,omitempty"`
+	Metadata map[string]json.RawMessage            `json:"metadata,omitempty"`
 }
 
 type CompletionsStreamResponse struct {
