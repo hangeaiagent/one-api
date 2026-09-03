@@ -43,6 +43,9 @@ var ModelList = []string{
 	// Gemini 3.6 GA - workhorse main model (2026-07-21)
 	"gemini-3.6-flash",
 
+	// Gemini 3.8 GA - latest workhorse (intro pricing until 2026-12-31)
+	"gemini-3.8-flash",
+
 	// TTS models
 	"gemini-2.5-flash-preview-tts",
 	"gemini-2.5-pro-preview-tts",

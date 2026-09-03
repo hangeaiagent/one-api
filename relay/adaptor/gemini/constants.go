@@ -46,6 +46,9 @@ var modelCapabilities = map[string]ModelCapability{
 	// Gemini 3.6 GA - workhorse
 	"gemini-3.6-flash": {SystemInstruction: true},
 
+	// Gemini 3.8 GA - latest workhorse
+	"gemini-3.8-flash": {SystemInstruction: true},
+
 	// TTS
 	"gemini-2.5-flash-preview-tts": {TTS: true},
 	"gemini-2.5-pro-preview-tts":   {TTS: true},

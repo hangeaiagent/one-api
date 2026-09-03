@@ -155,6 +155,9 @@ var ModelRatio = map[string]float64{
 	"gemini-3.5-flash-lite": 0.15 * MILLI_USD, // $0.30/1M input
 	// Gemini 3.6 GA - workhorse (2026-07-21)
 	"gemini-3.6-flash": 0.75 * MILLI_USD, // $1.50/1M input, $7.50/1M output
+	// Gemini 3.8 GA - intro pricing until 2026-12-31 ($0.75 in / $3.75 out per 1M, Global);
+	// bump to 0.75 * MILLI_USD from 2027-01-01 to match Standard pricing ($1.50 / $7.50).
+	"gemini-3.8-flash": 0.375 * MILLI_USD,
 	// Embeddings
 	"gemini-embedding-2": 0.05 * MILLI_USD,
 	// Gemini TTS - per character pricing

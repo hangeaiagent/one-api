@@ -35,6 +35,7 @@ var v1betaModelPrefixes = []string{
 	"gemini-3.1",
 	"gemini-3.5",
 	"gemini-3.6",
+	"gemini-3.8",
 }
 
 func requiresV1Beta(modelName string) bool {

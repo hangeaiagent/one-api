@@ -363,6 +363,32 @@ var modelCapabilities = map[string]ModelCapability{
 
 ---
 
+## 五之补：Gemini 3.8 Flash 追加（2026-09-04）
+
+Google 于 2026 年下半年推出 **Gemini 3.8 Flash**（页面：<https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash>），本次以最小改动方式接入：
+
+**改动点**
+
+- `relay/adaptor/geminiv2/constants.go` 追加 `gemini-3.8-flash`（Vertex 侧通过 `append(vertexOnlyModels, geminiv2.ModelList...)` 自动继承）。
+- `relay/adaptor/gemini/adaptor.go` `v1betaModelPrefixes` 追加 `gemini-3.8`。
+- `relay/adaptor/gemini/constants.go` `modelCapabilities` 追加 `{SystemInstruction: true}`。
+- `relay/billing/ratio/model.go` 追加 `"gemini-3.8-flash": 0.375 * MILLI_USD`。
+
+**定价来源（Google Cloud 官方页面）**
+
+| 档位 | 输入 $/1M | 缓存输入 $/1M | 输出 $/1M | 备注 |
+|---|---|---|---|---|
+| Standard (Global) — 介绍价，2026-12-31 前 | 0.75 | 0.075 | 3.75 | **本次采用** |
+| Standard (Global) — 2027-01-01 起 | 1.50 | 0.15 | 7.50 | 到期后需改为 `0.75 * MILLI_USD` |
+| Standard (非 Global) — 介绍价 | 0.825 | 0.0825 | 4.125 | 未区分区域 |
+| Priority（介绍价） | 1.35 | 0.135 | 6.75 | 未区分档位 |
+| Flex / Batch（介绍价） | 0.375 | 0.0375 | 1.875 | 未区分档位 |
+
+**技术债**
+
+- ratio 目前是单一浮点，无法表达 Standard / Priority / Flex-Batch 分档，也无法自动跨过 2026-12-31 提价日；到期前需要人工修改并部署。
+- 缓存输入、非 Global 区域加价均未反映，如后续需要精算需扩展 `TieredRatio` 结构（原方案第 4.2.5 节已埋伏笔）。
+
 ## 六、参考资料
 
 - Google 官方模型页：<https://ai.google.dev/gemini-api/docs/models>
@@ -371,3 +397,5 @@ var modelCapabilities = map[string]ModelCapability{
 - Gemini 3.6 Flash 发布报道（TechCrunch, 2026-07-21）：<https://techcrunch.com/2026/07/21/google-releases-three-new-gemini-models-but-no-3-5-pro/>
 - Gemini 3.6 Flash 报道（9to5Google, 2026-07-21）：<https://9to5google.com/2026/07/21/gemini-3-6-flash-launch/>
 - Gemini 3.6 Flash Model ID 与规格（kie.ai）：<https://kie.ai/blog/what-is-gemini-3-6-flash>
+- Gemini 3.8 Flash 官方模型页：<https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash>
+- Gemini 3.8 Flash 官方定价（Google Cloud）：<https://cloud.google.com/vertex-ai/generative-ai/pricing>
