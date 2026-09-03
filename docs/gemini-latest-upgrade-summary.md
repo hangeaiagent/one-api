@@ -188,6 +188,38 @@ var ModelList = append(append([]string{}, vertexOnlyModels...), geminiv2.ModelLi
 11. ✅ 等待 DB migration 完成（10s，logs 表加索引）
 12. ✅ 探活：内网 200 / 外网 200 / 二进制包含新模型 ID
 
+### 6.3 Gemini 3.8 Flash 增量部署（2026-09-03）
+
+对应 commit `d493ba2 feat(gemini): 接入 Gemini 3.8 Flash（介绍价档）`。定价策略：官方 Standard-Global 在 2026-12-31 前是介绍价 `$0.75/1M in / $3.75/1M out`（是 3.6-flash Standard 全价的一半）；本次落 `0.375 * MILLI_USD`，注释里标记 **2027-01-01 起需要人工上调到 `0.75 * MILLI_USD`**。
+
+因服务器操作员对 3.6-flash 也没有做 override（沿用仓库值），本次 3.8-flash 同样 **不加 server-override**，保持一致。`apply-server-pricing.py` 无需改动。
+
+**部署 checklist（本次实际执行）**
+
+1. ✅ 备份 `/tmp/model.go.serverlocal.20260903-164947`、`/tmp/adaptor.go.serverlocal.20260903-164947`、`one-api.bak-20260903-164947`（38.29 MB）。
+2. ✅ `git stash push -m 'pre-gemini38-upgrade-20260903-164947' -- relay/billing/ratio/model.go relay/adaptor/gemini/adaptor.go` 保留服务器本地改动。
+3. ✅ `git pull origin main` fast-forward 到 `d493ba2`（5 files, +38 行）。
+4. ✅ `python3 /tmp/apply-server-pricing.py` 重放全部 7 条定价 override + 2 条 embedding 新增 + CompletionRatio Gemini 段。
+5. ✅ Python 就地补丁重放 embeddings-v1beta 修复：`adaptor.go:52` 追加 `|| meta.Mode == relaymode.Embeddings`。
+6. ✅ `/usr/local/go/bin/gofmt -w relay/billing/ratio/model.go relay/adaptor/gemini/adaptor.go`。
+7. ✅ `/usr/local/go/bin/go build -ldflags '-s -w' -o one-api.new ./`（46.7s，产物 36.51 MB / 38286232 B）。
+8. ✅ `mv one-api.new one-api`。
+9. ✅ 精确 `kill 1826877`（老 PID），1s 后进程消失。
+10. ✅ `setsid nohup ./one-api --port 3000 --log-dir ./logs > logs/one-api-boot-20260903.log 2>&1 & disown` → **新 PID 2665594**。
+11. ✅ DB migration 完成用时 ~78s（logs 表 819,543 行，需要重建 6 个索引，本轮比上次慢是因数据量翻倍）。
+12. ✅ 探活：
+    - 内网 `curl http://localhost:3000/api/status` HTTP 200 (~0.16ms)
+    - 外网 `curl http://104.197.139.51:3000/api/status` HTTP 200 干净 JSON
+    - 外网 `curl http://oneapi.gitagent.io/api/status` HTTP 200 (~171ms，nginx 转发 + gzip)
+    - `strings one-api | grep gemini-3.8-flash` 命中 ✓
+13. ⏸️ 真实 API key 冒烟 `gemini-3.8-flash` chat/completions —— 待运维/QA 使用生效渠道触发。
+
+**技术债 & 提醒**
+
+- ⏰ **2026-12-31 后需人工上调 3.8-flash 定价** 至 `0.75 * MILLI_USD`（Standard 全价 $1.50/1M input），否则会持续以介绍价计费导致少收。
+- 服务器 `apply-server-pricing.py` 未新增 3.8-flash 相关 override（沿用 3.6-flash 无 override 的操作员习惯）；若后续统一 Gemini 3.x 走「值 = $/1M」约定，需要一并追加 3.6-flash + 3.8-flash 的 override 与 CompletionRatio。
+- Gemini 3.8-flash 官方另有 Priority / Flex-Batch / 非-Global 区域 / cached-input 分档定价，当前 ratio 表仍是单一浮点，无法反映。属于 4.1 节遗留技术债的延续，需扩展 `TieredRatio`。
+
 ---
 
 ## 六、GitHub 上游情况回顾
