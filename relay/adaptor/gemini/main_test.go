@@ -212,3 +212,31 @@ func TestConvertRequest_MultipleSystemMessagesMerged(t *testing.T) {
 		t.Fatalf("expected single user content, got %+v", out.Contents)
 	}
 }
+
+func TestMaxOutputTokensWithThinking(t *testing.T) {
+	cases := []struct {
+		model string
+		in    int
+		want  int
+	}{
+		{"gemini-3.8-flash", 200, 200 + 8192},
+		{"gemini-2.5-flash", 1000, 1000 + 8192},
+		{"gemini-3.8-flash", 0, 0},
+		{"gemini-3.8-flash", 60000, 65536},
+		{"gemini-3-pro-image-preview", 4096, 4096},
+		{"gemini-2.0-flash", 200, 200},
+	}
+	for _, c := range cases {
+		if got := maxOutputTokensWithThinking(c.model, c.in); got != c.want {
+			t.Fatalf("%s/%d: got %d want %d", c.model, c.in, got, c.want)
+		}
+	}
+}
+
+func TestResponseGeminiChat2OpenAI_MaxTokensIsLength(t *testing.T) {
+	resp := unmarshalResp(t, `{"candidates":[{"content":{"role":"model","parts":[{"text":"作为"}]},"finishReason":"MAX_TOKENS"}]}`)
+	out := responseGeminiChat2OpenAI(resp)
+	if out.Choices[0].FinishReason != "length" {
+		t.Fatalf("expected length, got %s", out.Choices[0].FinishReason)
+	}
+}

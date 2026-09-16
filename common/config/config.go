@@ -163,6 +163,9 @@ var InitialRootAccessToken = os.Getenv("INITIAL_ROOT_ACCESS_TOKEN")
 
 var GeminiVersion = env.String("GEMINI_VERSION", "v1")
 
+// GeminiThinkingHeadroom 思考模型在 max_tokens 之上追加的输出余量（token），0 为关闭
+var GeminiThinkingHeadroom = env.Int("GEMINI_THINKING_HEADROOM", 8192)
+
 var OnlyOneLogFile = env.Bool("ONLY_ONE_LOG_FILE", false)
 
 var RelayProxy = env.String("RELAY_PROXY", "")

@@ -3,6 +3,7 @@ package gemini
 import (
 	"strings"
 
+	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/relay/adaptor/geminiv2"
 )
 
@@ -120,4 +121,28 @@ func buildThinkingConfig(model string, effort string) *ThinkingConfig {
 		return &ThinkingConfig{ThinkingLevel: "low"}
 	}
 	return nil
+}
+
+// geminiMaxOutputTokens 是 Gemini 3.x / 2.5 文本模型的输出上限
+const geminiMaxOutputTokens = 65536
+
+// maxOutputTokensWithThinking 给会思考的模型在客户端 max_tokens 之上追加思考余量。
+// Gemini 的 maxOutputTokens 同时包含思考 token 和正文 token；gemini-3.7/3.8 默认思考较深，
+// 客户端按 OpenAI 语义传 max_tokens=200 时思考就会耗尽额度，正文只剩几个字。
+// 余量由 GEMINI_THINKING_HEADROOM 配置，设为 0 可关闭。
+func maxOutputTokensWithThinking(model string, maxTokens int) int {
+	if maxTokens <= 0 || config.GeminiThinkingHeadroom <= 0 {
+		return maxTokens
+	}
+	if IsModelSupportImageGeneration(model) || IsModelSupportTTS(model) {
+		return maxTokens
+	}
+	if !strings.HasPrefix(model, "gemini-2.5") && !strings.HasPrefix(model, "gemini-3") && !strings.HasPrefix(model, "gemini-4") {
+		return maxTokens
+	}
+	total := maxTokens + config.GeminiThinkingHeadroom
+	if total > geminiMaxOutputTokens {
+		total = geminiMaxOutputTokens
+	}
+	return total
 }

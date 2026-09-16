@@ -63,7 +63,7 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		GenerationConfig: ChatGenerationConfig{
 			Temperature:     textRequest.Temperature,
 			TopP:            textRequest.TopP,
-			MaxOutputTokens: textRequest.MaxTokens,
+			MaxOutputTokens: maxOutputTokensWithThinking(textRequest.Model, textRequest.MaxTokens),
 		},
 	}
 	if IsModelSupportImageGeneration(textRequest.Model) {
@@ -363,6 +363,10 @@ func responseGeminiChat2OpenAI(response *ChatResponse) *openai.TextResponse {
 				Role: "assistant",
 			},
 			FinishReason: constant.StopFinishReason,
+		}
+		if candidate.FinishReason == "MAX_TOKENS" {
+			// 被输出上限截断时如实告知调用方，不能伪装成正常结束
+			choice.FinishReason = "length"
 		}
 		if len(candidate.Content.Parts) > 0 {
 			if candidate.Content.Parts[0].FunctionCall != nil {
