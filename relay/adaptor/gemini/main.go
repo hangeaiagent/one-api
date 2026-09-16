@@ -69,6 +69,9 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	if IsModelSupportImageGeneration(textRequest.Model) {
 		geminiRequest.GenerationConfig.ResponseModalities = []string{"TEXT", "IMAGE"}
 	}
+	if textRequest.ReasoningEffort != nil {
+		geminiRequest.GenerationConfig.ThinkingConfig = buildThinkingConfig(textRequest.Model, *textRequest.ReasoningEffort)
+	}
 	if textRequest.ResponseFormat != nil {
 		if mimeType, ok := mimeTypeMap[textRequest.ResponseFormat.Type]; ok {
 			geminiRequest.GenerationConfig.ResponseMimeType = mimeType
@@ -210,14 +213,16 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		}
 		// Converting system prompt to prompt from user for the same reason
 		if content.Role == "system" {
-			shouldAddDummyModelMessage = true
 			if IsModelSupportSystemInstruction(textRequest.Model) {
+				// 走 systemInstruction 时不能置 dummy 标记：否则标记会泄漏到下一条
+				// user 消息之后，追加 "Okay" 使请求以 model 轮结尾。
+				// gemini-3.6+ 对此返回 400 "Requests ending with a model turn are not supported."
 				geminiRequest.SystemInstruction = &content
 				geminiRequest.SystemInstruction.Role = ""
 				continue
-			} else {
-				content.Role = "user"
 			}
+			shouldAddDummyModelMessage = true
+			content.Role = "user"
 		}
 
 		geminiRequest.Contents = append(geminiRequest.Contents, content)

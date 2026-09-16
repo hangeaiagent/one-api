@@ -1,6 +1,8 @@
 package gemini
 
 import (
+	"strings"
+
 	"github.com/songquanpeng/one-api/relay/adaptor/geminiv2"
 )
 
@@ -46,13 +48,23 @@ var modelCapabilities = map[string]ModelCapability{
 	// Gemini 3.6 GA - workhorse
 	"gemini-3.6-flash": {SystemInstruction: true},
 
+	// Gemini 3.7 GA (2026-08-13)
+	"gemini-3.7-flash": {SystemInstruction: true},
+
 	// Gemini 3.8 GA - latest workhorse
 	"gemini-3.8-flash": {SystemInstruction: true},
+
+	// 生图模型 GA（Nano Banana 系列）
+	"gemini-2.5-flash-image":      {SystemInstruction: true, ImageGeneration: true},
+	"gemini-3-pro-image":          {SystemInstruction: true, ImageGeneration: true},
+	"gemini-3.1-flash-image":      {SystemInstruction: true, ImageGeneration: true},
+	"gemini-3.1-flash-lite-image": {SystemInstruction: true, ImageGeneration: true},
 
 	// TTS
 	"gemini-2.5-flash-preview-tts": {TTS: true},
 	"gemini-2.5-pro-preview-tts":   {TTS: true},
 	"gemini-3.1-flash-tts":         {TTS: true},
+	"gemini-3.1-flash-tts-preview": {TTS: true},
 }
 
 // IsModelSupportSystemInstruction reports whether the model accepts
@@ -72,4 +84,40 @@ func IsModelSupportImageGeneration(model string) bool {
 // responseModalities: ["AUDIO"].
 func IsModelSupportTTS(model string) bool {
 	return modelCapabilities[model].TTS
+}
+
+// thinkingBudgetByEffort 仅用于 gemini-2.5（按 token 预算控制思考）
+var thinkingBudgetByEffort = map[string]int{
+	"none":    0,
+	"minimal": 1024,
+	"low":     1024,
+	"medium":  8192,
+	"high":    24576,
+}
+
+// buildThinkingConfig 把 OpenAI 的 reasoning_effort 翻译成 Gemini thinkingConfig。
+// gemini-3.x 只接受 thinkingLevel；其中 flash-lite 支持 minimal，
+// 其余（如 3.8-flash）传 minimal 会报错，统一降为 low。无法识别的取值返回 nil（不下发）。
+func buildThinkingConfig(model string, effort string) *ThinkingConfig {
+	effort = strings.ToLower(strings.TrimSpace(effort))
+	if strings.HasPrefix(model, "gemini-2.5") {
+		budget, ok := thinkingBudgetByEffort[effort]
+		if !ok {
+			return nil
+		}
+		return &ThinkingConfig{ThinkingBudget: &budget}
+	}
+	if !strings.HasPrefix(model, "gemini-3") {
+		return nil
+	}
+	switch effort {
+	case "low", "medium", "high":
+		return &ThinkingConfig{ThinkingLevel: effort}
+	case "minimal", "none":
+		if strings.Contains(model, "flash-lite") {
+			return &ThinkingConfig{ThinkingLevel: "minimal"}
+		}
+		return &ThinkingConfig{ThinkingLevel: "low"}
+	}
+	return nil
 }

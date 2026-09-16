@@ -71,23 +71,30 @@ type ChatSafetySettings struct {
 }
 
 type ChatTools struct {
-	FunctionDeclarations any          `json:"function_declarations,omitempty"`
+	FunctionDeclarations any           `json:"function_declarations,omitempty"`
 	GoogleSearch         *GoogleSearch `json:"google_search,omitempty"`
 }
 
 type GoogleSearch struct{}
 
 type ChatGenerationConfig struct {
-	ResponseMimeType   string        `json:"responseMimeType,omitempty"`
-	ResponseSchema     any           `json:"responseSchema,omitempty"`
-	ResponseModalities []string      `json:"responseModalities,omitempty"`
-	SpeechConfig       *SpeechConfig `json:"speechConfig,omitempty"`
-	Temperature        *float64      `json:"temperature,omitempty"`
-	TopP               *float64      `json:"topP,omitempty"`
-	TopK               float64       `json:"topK,omitempty"`
-	MaxOutputTokens    int           `json:"maxOutputTokens,omitempty"`
-	CandidateCount     int           `json:"candidateCount,omitempty"`
-	StopSequences      []string      `json:"stopSequences,omitempty"`
+	ResponseMimeType   string          `json:"responseMimeType,omitempty"`
+	ResponseSchema     any             `json:"responseSchema,omitempty"`
+	ResponseModalities []string        `json:"responseModalities,omitempty"`
+	SpeechConfig       *SpeechConfig   `json:"speechConfig,omitempty"`
+	Temperature        *float64        `json:"temperature,omitempty"`
+	TopP               *float64        `json:"topP,omitempty"`
+	TopK               float64         `json:"topK,omitempty"`
+	MaxOutputTokens    int             `json:"maxOutputTokens,omitempty"`
+	CandidateCount     int             `json:"candidateCount,omitempty"`
+	StopSequences      []string        `json:"stopSequences,omitempty"`
+	ThinkingConfig     *ThinkingConfig `json:"thinkingConfig,omitempty"`
+}
+
+// ThinkingConfig: gemini-3.x 用 thinkingLevel，gemini-2.5 用 thinkingBudget，二者不能同时出现（否则 400）
+type ThinkingConfig struct {
+	ThinkingLevel  string `json:"thinkingLevel,omitempty"`
+	ThinkingBudget *int   `json:"thinkingBudget,omitempty"`
 }
 
 // SpeechConfig for Gemini TTS

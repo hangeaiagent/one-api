@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/songquanpeng/one-api/relay/model"
 )
 
 const groundingSample = `{
@@ -120,5 +122,71 @@ func TestBuildMetadata_NullPayload(t *testing.T) {
 	}`)
 	if md := buildMetadata(resp); md != nil {
 		t.Fatalf("null grounding should yield nil, got %v", md)
+	}
+}
+
+func TestConvertRequest_SystemUserDoesNotEndWithModelTurn(t *testing.T) {
+	req := model.GeneralOpenAIRequest{
+		Model: "gemini-3.8-flash",
+		Messages: []model.Message{
+			{Role: "system", Content: "只回复 OK"},
+			{Role: "user", Content: "ping"},
+		},
+	}
+	out := ConvertRequest(req)
+	if out.SystemInstruction == nil {
+		t.Fatal("expected systemInstruction to be set")
+	}
+	if len(out.Contents) != 1 || out.Contents[0].Role != "user" {
+		t.Fatalf("expected single user content, got %+v", out.Contents)
+	}
+}
+
+func TestConvertRequest_SystemFallbackAddsDummyModelTurn(t *testing.T) {
+	req := model.GeneralOpenAIRequest{
+		Model: "gemini-unknown-model",
+		Messages: []model.Message{
+			{Role: "system", Content: "只回复 OK"},
+			{Role: "user", Content: "ping"},
+		},
+	}
+	out := ConvertRequest(req)
+	roles := make([]string, 0, len(out.Contents))
+	for _, c := range out.Contents {
+		roles = append(roles, c.Role)
+	}
+	if strings.Join(roles, ",") != "user,model,user" {
+		t.Fatalf("unexpected roles: %v", roles)
+	}
+}
+
+func TestBuildThinkingConfig(t *testing.T) {
+	cases := []struct {
+		model, effort, level string
+		budget               int
+		isNil                bool
+	}{
+		{"gemini-3.8-flash", "high", "high", 0, false},
+		{"gemini-3.8-flash", "minimal", "low", 0, false},
+		{"gemini-3.1-flash-lite", "minimal", "minimal", 0, false},
+		{"gemini-2.5-flash", "none", "", 0, false},
+		{"gemini-2.5-flash", "medium", "", 8192, false},
+		{"gemini-3.8-flash", "bogus", "", 0, true},
+		{"gpt-4o", "high", "", 0, true},
+	}
+	for _, c := range cases {
+		got := buildThinkingConfig(c.model, c.effort)
+		if c.isNil {
+			if got != nil {
+				t.Fatalf("%s/%s: expected nil, got %+v", c.model, c.effort, got)
+			}
+			continue
+		}
+		if got == nil || got.ThinkingLevel != c.level {
+			t.Fatalf("%s/%s: unexpected %+v", c.model, c.effort, got)
+		}
+		if got.ThinkingLevel == "" && (got.ThinkingBudget == nil || *got.ThinkingBudget != c.budget) {
+			t.Fatalf("%s/%s: unexpected budget %+v", c.model, c.effort, got.ThinkingBudget)
+		}
 	}
 }

@@ -35,7 +35,9 @@ var v1betaModelPrefixes = []string{
 	"gemini-3.1",
 	"gemini-3.5",
 	"gemini-3.6",
+	"gemini-3.7",
 	"gemini-3.8",
+	"gemini-4",
 }
 
 func requiresV1Beta(modelName string) bool {
@@ -49,7 +51,7 @@ func requiresV1Beta(modelName string) bool {
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	defaultVersion := config.GeminiVersion
-	if requiresV1Beta(meta.ActualModelName) {
+	if requiresV1Beta(meta.ActualModelName) || meta.Mode == relaymode.Embeddings {
 		defaultVersion = "v1beta"
 	}
 

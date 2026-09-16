@@ -158,12 +158,21 @@ var ModelRatio = map[string]float64{
 	// Gemini 3.8 GA - intro pricing until 2026-12-31 ($0.75 in / $3.75 out per 1M, Global);
 	// bump to 0.75 * MILLI_USD from 2027-01-01 to match Standard pricing ($1.50 / $7.50).
 	"gemini-3.8-flash": 0.375 * MILLI_USD,
+	// Gemini 3.7 GA - 与 3.8 同价：介绍价 $0.75 in / $3.75 out（2026-12-31 前），2027-01-01 起需上调到 0.75 * MILLI_USD
+	"gemini-3.7-flash": 0.375 * MILLI_USD,
+	// 生图模型：此处只反映输入价；图片输出 token 单价远高于文本（$30-$120/1M），
+	// 线上需沿用 apply-server-pricing.py 对 gemini-3-pro-image-preview 的覆盖思路单独校准
+	"gemini-2.5-flash-image":      0.15 * MILLI_USD,  // $0.30/1M input
+	"gemini-3-pro-image":          1 * MILLI_USD,     // $2.00/1M input
+	"gemini-3.1-flash-image":      0.25 * MILLI_USD,  // $0.50/1M input
+	"gemini-3.1-flash-lite-image": 0.125 * MILLI_USD, // $0.25/1M input
 	// Embeddings
 	"gemini-embedding-2": 0.05 * MILLI_USD,
 	// Gemini TTS - per character pricing
 	"gemini-2.5-flash-preview-tts": 0.06, // $0.12/1M chars
 	"gemini-2.5-pro-preview-tts":   0.12, // $0.24/1M chars
 	"gemini-3.1-flash-tts":         0.06, // preview pricing
+	"gemini-3.1-flash-tts-preview": 0.06, // 官方 ID 带 -preview 后缀
 	"aqa":                    1,
 	// https://open.bigmodel.cn/pricing
 	"glm-zero-preview": 0.01 * RMB,

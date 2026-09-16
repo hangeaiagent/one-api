@@ -13,6 +13,7 @@ var ModelList = []string{
 
 	// Embeddings
 	"text-embedding-004",
+	"gemini-embedding-001",
 	"gemini-embedding-2",
 	"aqa",
 
@@ -43,11 +44,21 @@ var ModelList = []string{
 	// Gemini 3.6 GA - workhorse main model (2026-07-21)
 	"gemini-3.6-flash",
 
+	// Gemini 3.7 GA (2026-08-13, intro pricing until 2026-12-31)
+	"gemini-3.7-flash",
+
 	// Gemini 3.8 GA - latest workhorse (intro pricing until 2026-12-31)
 	"gemini-3.8-flash",
+
+	// 生图模型 GA（Nano Banana 系列）
+	"gemini-2.5-flash-image",
+	"gemini-3-pro-image",
+	"gemini-3.1-flash-image",
+	"gemini-3.1-flash-lite-image",
 
 	// TTS models
 	"gemini-2.5-flash-preview-tts",
 	"gemini-2.5-pro-preview-tts",
 	"gemini-3.1-flash-tts",
+	"gemini-3.1-flash-tts-preview",
 }
