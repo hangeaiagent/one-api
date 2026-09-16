@@ -190,3 +190,25 @@ func TestBuildThinkingConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestConvertRequest_MultipleSystemMessagesMerged(t *testing.T) {
+	req := model.GeneralOpenAIRequest{
+		Model: "gemini-3.8-flash",
+		Messages: []model.Message{
+			{Role: "system", Content: "人设"},
+			{Role: "system", Content: "注入数据"},
+			{Role: "user", Content: "问题"},
+			{Role: "system", Content: "必须中文"},
+		},
+	}
+	out := ConvertRequest(req)
+	if out.SystemInstruction == nil || len(out.SystemInstruction.Parts) != 3 {
+		t.Fatalf("expected 3 merged system parts, got %+v", out.SystemInstruction)
+	}
+	if out.SystemInstruction.Parts[0].Text != "人设" || out.SystemInstruction.Parts[2].Text != "必须中文" {
+		t.Fatalf("unexpected order: %+v", out.SystemInstruction.Parts)
+	}
+	if len(out.Contents) != 1 || out.Contents[0].Role != "user" {
+		t.Fatalf("expected single user content, got %+v", out.Contents)
+	}
+}

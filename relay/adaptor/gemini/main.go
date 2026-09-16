@@ -217,8 +217,13 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 				// 走 systemInstruction 时不能置 dummy 标记：否则标记会泄漏到下一条
 				// user 消息之后，追加 "Okay" 使请求以 model 轮结尾。
 				// gemini-3.6+ 对此返回 400 "Requests ending with a model turn are not supported."
-				geminiRequest.SystemInstruction = &content
-				geminiRequest.SystemInstruction.Role = ""
+				// 多条 system 消息按顺序合并，不能后者覆盖前者（否则人设、注入数据会丢失）
+				if geminiRequest.SystemInstruction == nil {
+					geminiRequest.SystemInstruction = &content
+					geminiRequest.SystemInstruction.Role = ""
+				} else {
+					geminiRequest.SystemInstruction.Parts = append(geminiRequest.SystemInstruction.Parts, content.Parts...)
+				}
 				continue
 			}
 			shouldAddDummyModelMessage = true
