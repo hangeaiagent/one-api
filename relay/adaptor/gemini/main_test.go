@@ -240,3 +240,26 @@ func TestResponseGeminiChat2OpenAI_MaxTokensIsLength(t *testing.T) {
 		t.Fatalf("expected length, got %s", out.Choices[0].FinishReason)
 	}
 }
+
+func TestConvertRequest_ToolResultWithoutToolsBecomesText(t *testing.T) {
+	name := "stock_quickview"
+	msgs := []model.Message{
+		{Role: "system", Content: "投研助手"},
+		{Role: "user", Content: "茅台怎么样"},
+		{Role: "assistant", ToolCalls: []model.Tool{{Id: "call_1", Type: "function", Function: model.Function{Name: name, Arguments: "{}"}}}},
+		{Role: "tool", ToolCallId: "call_1", Content: `{"price":1258}`},
+	}
+	out := ConvertRequest(model.GeneralOpenAIRequest{Model: "gemini-3.8-flash", Messages: msgs})
+	last := out.Contents[len(out.Contents)-1]
+	if last.Parts[0].FunctionResponse != nil || !strings.Contains(last.Parts[0].Text, "stock_quickview") {
+		t.Fatalf("expected plain text tool result, got %+v", last)
+	}
+
+	withTools := model.GeneralOpenAIRequest{Model: "gemini-3.8-flash", Messages: msgs,
+		Tools: []model.Tool{{Type: "function", Function: model.Function{Name: name}}}}
+	out = ConvertRequest(withTools)
+	last = out.Contents[len(out.Contents)-1]
+	if last.Parts[0].FunctionResponse == nil {
+		t.Fatalf("expected functionResponse when tools declared, got %+v", last)
+	}
+}

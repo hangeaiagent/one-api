@@ -107,6 +107,7 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		}
 	}
 	shouldAddDummyModelMessage := false
+	hasToolDeclarations := len(textRequest.Tools) > 0 || textRequest.Functions != nil
 	// Build a tool_call_id -> function_name index from prior assistant tool_calls
 	// so we can resolve the function name when converting role:"tool" messages.
 	toolCallNames := map[string]string{}
@@ -128,6 +129,16 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 			}
 			if fnName == "" {
 				fnName = "unknown_function"
+			}
+			if !hasToolDeclarations {
+				// 本轮未声明工具（典型场景：工具跑完后的汇总调用）。若仍以 functionResponse
+				// 形式回传，gemini-3.7/3.8 会模仿上下文再发起一次 functionCall 而不输出正文，
+				// 调用方拿到空回答。改为普通文本交给模型。
+				geminiRequest.Contents = append(geminiRequest.Contents, ChatContent{
+					Role:  "user",
+					Parts: []Part{{Text: fmt.Sprintf("【工具 %s 返回结果】\n%s", fnName, message.StringContent())}},
+				})
+				continue
 			}
 			geminiRequest.Contents = append(geminiRequest.Contents, ChatContent{
 				Role: "user",
