@@ -58,6 +58,9 @@ type Part struct {
 	InlineData       *InlineData       `json:"inlineData,omitempty"`
 	FunctionCall     *FunctionCall     `json:"functionCall,omitempty"`
 	FunctionResponse *FunctionResponse `json:"functionResponse,omitempty"`
+	// Gemini 3 思考模型要求回传的 functionCall 带签名。OpenAI 格式带不回原签名，
+	// 用官方文档给出的占位值 skipThoughtSignatureValidator 跳过校验。
+	ThoughtSignature string `json:"thoughtSignature,omitempty"`
 }
 
 type ChatContent struct {

@@ -140,19 +140,21 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 				})
 				continue
 			}
-			geminiRequest.Contents = append(geminiRequest.Contents, ChatContent{
-				Role: "user",
-				Parts: []Part{
-					{
-						FunctionResponse: &FunctionResponse{
-							Name: fnName,
-							Response: map[string]any{
-								"content": message.StringContent(),
-							},
-						},
+			frPart := Part{
+				FunctionResponse: &FunctionResponse{
+					Name: fnName,
+					Response: map[string]any{
+						"content": message.StringContent(),
 					},
 				},
-			})
+			}
+			// 并行工具调用的多条结果合并进同一个 user 轮：Gemini 要求 functionResponse
+			// 的个数与上一个 model 轮里 functionCall 的个数一一对应。
+			if n := len(geminiRequest.Contents); n > 0 && isFunctionResponseTurn(geminiRequest.Contents[n-1]) {
+				geminiRequest.Contents[n-1].Parts = append(geminiRequest.Contents[n-1].Parts, frPart)
+			} else {
+				geminiRequest.Contents = append(geminiRequest.Contents, ChatContent{Role: "user", Parts: []Part{frPart}})
+			}
 			continue
 		}
 
@@ -205,6 +207,21 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 		}
 		parts = filtered
 
+		// 声明了工具时，把 assistant 的 tool_calls 还原成 model 轮的 functionCall 回传。
+		// 过去整轮丢弃，Gemini 看到的是一串没有对应调用的 functionResponse，
+		// 累计 3 轮起返回空候选（completion_tokens=0，finish_reason=stop）。
+		// 兴合测试环境实测 5/8–8/8 空返回，诊断见 hunter-client-xinghe
+		// docs/测试记录/2026-09-22_工具链空返回诊断.md。
+		if len(message.ToolCalls) > 0 && hasToolDeclarations {
+			for k, tc := range message.ToolCalls {
+				fc := Part{FunctionCall: &FunctionCall{FunctionName: tc.Function.Name, Arguments: parseToolArguments(tc.Function.Arguments)}}
+				// 并行调用只有第一个 functionCall 带签名（与 Gemini 原生行为一致）
+				if k == 0 {
+					fc.ThoughtSignature = skipThoughtSignature
+				}
+				parts = append(parts, fc)
+			}
+		}
 		// If the message has tool_calls and (after filtering) no other
 		// content, drop the message entirely — there is nothing useful to
 		// send to Gemini.
@@ -258,6 +275,40 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	}
 
 	return &geminiRequest
+}
+
+// skipThoughtSignature 是 Gemini 文档给出的占位签名：客户端拿不到原签名时用它跳过校验。
+const skipThoughtSignature = "skip_thought_signature_validator"
+
+func isFunctionResponseTurn(c ChatContent) bool {
+	if c.Role != "user" || len(c.Parts) == 0 {
+		return false
+	}
+	for _, p := range c.Parts {
+		if p.FunctionResponse == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// parseToolArguments 把 OpenAI tool_call 的 arguments（通常是 JSON 字符串）转成 Gemini 的 args 对象。
+func parseToolArguments(raw any) any {
+	str, ok := raw.(string)
+	if !ok {
+		if raw == nil {
+			return map[string]any{}
+		}
+		return raw
+	}
+	if strings.TrimSpace(str) == "" {
+		return map[string]any{}
+	}
+	var v map[string]any
+	if err := json.Unmarshal([]byte(str), &v); err != nil {
+		return map[string]any{"_raw": str}
+	}
+	return v
 }
 
 func ConvertEmbeddingRequest(request model.GeneralOpenAIRequest) *BatchEmbeddingRequest {

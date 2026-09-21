@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -261,5 +262,69 @@ func TestConvertRequest_ToolResultWithoutToolsBecomesText(t *testing.T) {
 	last = out.Contents[len(out.Contents)-1]
 	if last.Parts[0].FunctionResponse == nil {
 		t.Fatalf("expected functionResponse when tools declared, got %+v", last)
+	}
+}
+
+// 多轮工具调用：assistant 的 tool_calls 必须还原成 model 轮 functionCall（带占位签名），
+// 否则 Gemini 3 在累计 3 轮后返回空候选。
+func TestConvertRequest_EchoFunctionCallTurns(t *testing.T) {
+	tools := []model.Tool{{Type: "function", Function: model.Function{Name: "invoke"}}}
+	msgs := []model.Message{
+		{Role: "system", Content: "投研助手"},
+		{Role: "user", Content: "分三步查"},
+	}
+	for i := 1; i <= 3; i++ {
+		id := fmt.Sprintf("call_%d", i)
+		msgs = append(msgs,
+			model.Message{Role: "assistant", Content: "", ToolCalls: []model.Tool{{Id: id, Type: "function", Function: model.Function{Name: "invoke", Arguments: `{"tool":"fund_list"}`}}}},
+			model.Message{Role: "tool", ToolCallId: id, Content: `{"ok":true}`},
+		)
+	}
+	out := ConvertRequest(model.GeneralOpenAIRequest{Model: "gemini-3.8-flash", Messages: msgs, Tools: tools})
+	// user + 3×(model functionCall, user functionResponse)
+	if len(out.Contents) != 7 {
+		t.Fatalf("expected 7 contents, got %d: %+v", len(out.Contents), out.Contents)
+	}
+	for i := 1; i < 7; i += 2 {
+		m, u := out.Contents[i], out.Contents[i+1]
+		if m.Role != "model" || m.Parts[0].FunctionCall == nil || m.Parts[0].ThoughtSignature != skipThoughtSignature {
+			t.Fatalf("content %d should be model functionCall with signature, got %+v", i, m)
+		}
+		args, ok := m.Parts[0].FunctionCall.Arguments.(map[string]any)
+		if !ok || args["tool"] != "fund_list" {
+			t.Fatalf("arguments not parsed into object: %#v", m.Parts[0].FunctionCall.Arguments)
+		}
+		if u.Role != "user" || u.Parts[0].FunctionResponse == nil {
+			t.Fatalf("content %d should be user functionResponse, got %+v", i+1, u)
+		}
+	}
+	if out.Contents[len(out.Contents)-1].Role != "user" {
+		t.Fatalf("request must not end with a model turn")
+	}
+}
+
+// 并行调用：一个 model 轮多个 functionCall，只有第一个带签名；结果合并进同一个 user 轮。
+func TestConvertRequest_ParallelToolCallsGrouped(t *testing.T) {
+	tools := []model.Tool{{Type: "function", Function: model.Function{Name: "a"}}, {Type: "function", Function: model.Function{Name: "b"}}}
+	msgs := []model.Message{
+		{Role: "user", Content: "并行查"},
+		{Role: "assistant", ToolCalls: []model.Tool{
+			{Id: "c1", Type: "function", Function: model.Function{Name: "a", Arguments: "{}"}},
+			{Id: "c2", Type: "function", Function: model.Function{Name: "b", Arguments: ""}},
+		}},
+		{Role: "tool", ToolCallId: "c1", Content: "1"},
+		{Role: "tool", ToolCallId: "c2", Content: "2"},
+	}
+	out := ConvertRequest(model.GeneralOpenAIRequest{Model: "gemini-3.8-flash", Messages: msgs, Tools: tools})
+	if len(out.Contents) != 3 {
+		t.Fatalf("expected 3 contents, got %d: %+v", len(out.Contents), out.Contents)
+	}
+	m := out.Contents[1]
+	if len(m.Parts) != 2 || m.Parts[0].ThoughtSignature == "" || m.Parts[1].ThoughtSignature != "" {
+		t.Fatalf("parallel calls: only first part carries signature, got %+v", m.Parts)
+	}
+	u := out.Contents[2]
+	if len(u.Parts) != 2 || u.Parts[0].FunctionResponse.Name != "a" || u.Parts[1].FunctionResponse.Name != "b" {
+		t.Fatalf("tool results should be grouped in one user turn, got %+v", u.Parts)
 	}
 }
