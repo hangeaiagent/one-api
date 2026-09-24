@@ -97,10 +97,16 @@ func Relay(c *gin.Context) {
 			continue
 		}
 		
-		logger.Infof(ctx, "using channel #%d to retry (remain times %d)", channel.Id, i)
+		// 第一次重试是在同一优先级里随机挑的，挑中刚失败的渠道时之前直接 continue，
+		// 白白浪费一次重试；最高优先级只有一个渠道时，第一次重试必然浪费。
+		// 这里改为直接去低优先级里重挑一个。
 		if channel.Id == lastFailedChannelId {
-			continue
+			channel, err = dbmodel.CacheGetRandomSatisfiedChannel(group, originalModel, true)
+			if err != nil || channel.Id == lastFailedChannelId || monitor.IsChannel429Blocked(channel.Id) {
+				continue
+			}
 		}
+		logger.Infof(ctx, "using channel #%d to retry (remain times %d)", channel.Id, i)
 		middleware.SetupContextForSelectedChannel(c, channel, originalModel)
 		requestBody, err := common.GetRequestBody(c)
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))

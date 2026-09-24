@@ -86,6 +86,13 @@ func RelayErrorHandler(resp *http.Response) (ErrorWithStatusCode *model.ErrorWit
 	var errResponse GeneralErrorResponse
 	err = json.Unmarshal(responseBody, &errResponse)
 	if err != nil {
+		// Google 的 OpenAI 兼容端点（51 号渠道）把错误包在数组里：[{"error":{...}}]。
+		// 按对象解析会失败，之前这里直接返回，错误信息就成了空串，排查时看不到上游原因。
+		googleErr, ok := parseGoogleArrayError(responseBody)
+		if !ok {
+			return
+		}
+		ErrorWithStatusCode.Error = googleErr
 		return
 	}
 	if errResponse.Error.Message != "" {
@@ -98,4 +105,33 @@ func RelayErrorHandler(resp *http.Response) (ErrorWithStatusCode *model.ErrorWit
 		ErrorWithStatusCode.Error.Message = fmt.Sprintf("bad response status code %d", resp.StatusCode)
 	}
 	return
+}
+
+// googleArrayError 是 Google OpenAI 兼容端点的错误体：code 是数字，status 是 UNAVAILABLE 这类字符串。
+type googleArrayError []struct {
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Status  string `json:"status"`
+	} `json:"error"`
+}
+
+// parseGoogleArrayError 解析 [{"error":{...}}] 形式的错误体，取第一条。
+// code 用 status 字符串（如 UNAVAILABLE），与 OpenAI 格式里 code 是字符串的约定一致。
+func parseGoogleArrayError(body []byte) (model.Error, bool) {
+	var arr googleArrayError
+	if err := json.Unmarshal(body, &arr); err != nil || len(arr) == 0 || arr[0].Error.Message == "" {
+		return model.Error{}, false
+	}
+	e := arr[0].Error
+	code := any(e.Status)
+	if e.Status == "" {
+		code = strconv.Itoa(e.Code)
+	}
+	return model.Error{
+		Message: e.Message,
+		Type:    "upstream_error",
+		Param:   strconv.Itoa(e.Code),
+		Code:    code,
+	}, true
 }
