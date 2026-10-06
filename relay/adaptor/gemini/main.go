@@ -77,7 +77,8 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 			geminiRequest.GenerationConfig.ResponseMimeType = mimeType
 		}
 		if textRequest.ResponseFormat.JsonSchema != nil {
-			geminiRequest.GenerationConfig.ResponseSchema = textRequest.ResponseFormat.JsonSchema.Schema
+			// responseSchema 与工具参数同一个坑：JSON Schema 的关键字 Gemini 不认就整包 400。
+			geminiRequest.GenerationConfig.ResponseSchema = sanitizeGeminiSchema(textRequest.ResponseFormat.JsonSchema.Schema)
 			geminiRequest.GenerationConfig.ResponseMimeType = mimeTypeMap["json_object"]
 		}
 	}
@@ -88,7 +89,10 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 			if tool.Type == "google_search" {
 				hasGoogleSearch = true
 			} else {
-				functions = append(functions, tool.Function)
+				fn := tool.Function
+				// 参数 schema 必须清洗成 Gemini 认的 OpenAPI 子集，否则整包 400。
+				fn.Parameters = sanitizeGeminiSchema(fn.Parameters)
+				functions = append(functions, fn)
 			}
 		}
 		chatTools := ChatTools{}
@@ -102,7 +106,7 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	} else if textRequest.Functions != nil {
 		geminiRequest.Tools = []ChatTools{
 			{
-				FunctionDeclarations: textRequest.Functions,
+				FunctionDeclarations: sanitizeGeminiFunctions(textRequest.Functions),
 			},
 		}
 	}
