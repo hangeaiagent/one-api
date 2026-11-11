@@ -50,6 +50,10 @@ var ModelList = []string{
 	// Gemini 3.8 GA - latest workhorse (intro pricing until 2026-12-31)
 	"gemini-3.8-flash",
 
+	// Gemini 4 GA (2026-10 Argon / 2026-11 Carbon)
+	"gemini-4-argon",
+	"gemini-4-carbon",
+
 	// 生图模型 GA（Nano Banana 系列）
 	"gemini-2.5-flash-image",
 	"gemini-3-pro-image",

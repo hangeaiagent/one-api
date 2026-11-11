@@ -58,6 +58,9 @@ var modelCapabilities = map[string]ModelCapability{
 	// Gemini 4 Argon GA (2026-10-13) - 旗舰，复杂编程/智能体/数学/科学
 	"gemini-4-argon": {SystemInstruction: true},
 
+	// Gemini 4 Carbon GA (2026-11) - 深度推理旗舰，复杂软件工程/多步智能体/科学证明/安全防御
+	"gemini-4-carbon": {SystemInstruction: true},
+
 	// 生图模型 GA（Nano Banana 系列）
 	"gemini-2.5-flash-image":      {SystemInstruction: true, ImageGeneration: true},
 	"gemini-3-pro-image":          {SystemInstruction: true, ImageGeneration: true},
@@ -100,8 +103,8 @@ var thinkingBudgetByEffort = map[string]int{
 }
 
 // buildThinkingConfig 把 OpenAI 的 reasoning_effort 翻译成 Gemini thinkingConfig。
-// gemini-3.x 只接受 thinkingLevel；其中 flash-lite 支持 minimal，
-// 其余（如 3.8-flash）传 minimal 会报错，统一降为 low。无法识别的取值返回 nil（不下发）。
+// gemini-3.x / gemini-4.x 只接受 thinkingLevel；其中 flash-lite 支持 minimal，
+// 其余（如 3.8-flash、4-argon、4-carbon）传 minimal 会报错，统一降为 low。无法识别的取值返回 nil（不下发）。
 func buildThinkingConfig(model string, effort string) *ThinkingConfig {
 	effort = strings.ToLower(strings.TrimSpace(effort))
 	if strings.HasPrefix(model, "gemini-2.5") {
@@ -111,7 +114,7 @@ func buildThinkingConfig(model string, effort string) *ThinkingConfig {
 		}
 		return &ThinkingConfig{ThinkingBudget: &budget}
 	}
-	if !strings.HasPrefix(model, "gemini-3") {
+	if !strings.HasPrefix(model, "gemini-3") && !strings.HasPrefix(model, "gemini-4") {
 		return nil
 	}
 	switch effort {

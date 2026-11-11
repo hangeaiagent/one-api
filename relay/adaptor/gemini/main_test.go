@@ -169,6 +169,9 @@ func TestBuildThinkingConfig(t *testing.T) {
 	}{
 		{"gemini-3.8-flash", "high", "high", 0, false},
 		{"gemini-3.8-flash", "minimal", "low", 0, false},
+		{"gemini-4-argon", "medium", "medium", 0, false},
+		{"gemini-4-carbon", "high", "high", 0, false},
+		{"gemini-4-carbon", "minimal", "low", 0, false},
 		{"gemini-3.1-flash-lite", "minimal", "minimal", 0, false},
 		{"gemini-2.5-flash", "none", "", 0, false},
 		{"gemini-2.5-flash", "medium", "", 8192, false},
