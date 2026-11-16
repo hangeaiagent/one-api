@@ -55,6 +55,9 @@ var modelCapabilities = map[string]ModelCapability{
 	// Gemini 3.8 GA - latest workhorse
 	"gemini-3.8-flash": {SystemInstruction: true},
 
+	// Gemini 4 Hydrogen GA (2026-11) - 高速日常编程与极速智能体
+	"gemini-4-hydrogen": {SystemInstruction: true},
+
 	// Gemini 4 Argon GA (2026-10-13) - 旗舰，复杂编程/智能体/数学/科学
 	"gemini-4-argon": {SystemInstruction: true},
 
