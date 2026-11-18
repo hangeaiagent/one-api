@@ -332,3 +332,83 @@ func TestConvertRequest_ParallelToolCallsGrouped(t *testing.T) {
 		t.Fatalf("tool results should be grouped in one user turn, got %+v", u.Parts)
 	}
 }
+
+func TestConvertRequest_ImageConfig(t *testing.T) {
+	req := model.GeneralOpenAIRequest{
+		Model: "gemini-nano-banana-2.1",
+		Messages: []model.Message{
+			{Role: "user", Content: "draw a realistic alien mentor"},
+		},
+		ImageConfig: map[string]any{
+			"aspect_ratio": "16:9",
+			"image_size":   "2K",
+		},
+	}
+	out := ConvertRequest(req)
+	if len(out.GenerationConfig.ResponseModalities) != 2 || out.GenerationConfig.ResponseModalities[1] != "IMAGE" {
+		t.Fatalf("expected TEXT+IMAGE modalities for gemini-nano-banana-2.1, got %+v", out.GenerationConfig.ResponseModalities)
+	}
+	if out.GenerationConfig.ImageConfig == nil {
+		t.Fatal("expected ImageConfig to be set")
+	}
+	if out.GenerationConfig.ImageConfig.AspectRatio != "16:9" || out.GenerationConfig.ImageConfig.ImageSize != "2K" {
+		t.Fatalf("unexpected ImageConfig: %+v", out.GenerationConfig.ImageConfig)
+	}
+
+	// Test top-level aspect_ratio / image_size and camelCase / resolution aliases
+	req2 := model.GeneralOpenAIRequest{
+		Model: "gemini-3.1-flash-image",
+		Messages: []model.Message{
+			{Role: "user", Content: "draw"},
+		},
+		ImageConfig: map[string]any{
+			"aspectRatio": "9:16",
+			"resolution":  "1K",
+		},
+		AspectRatio: "21:9",
+	}
+	out2 := ConvertRequest(req2)
+	if out2.GenerationConfig.ImageConfig == nil || out2.GenerationConfig.ImageConfig.AspectRatio != "21:9" || out2.GenerationConfig.ImageConfig.ImageSize != "1K" {
+		t.Fatalf("unexpected ImageConfig override: %+v", out2.GenerationConfig.ImageConfig)
+	}
+}
+
+func TestConvertRequest_TTSAndNewModels(t *testing.T) {
+	if !IsModelSupportImageGeneration("gemini-nano-banana-2.1") || !IsModelSupportSystemInstruction("gemini-nano-banana-2.1") {
+		t.Fatal("gemini-nano-banana-2.1 capability mismatch")
+	}
+	for _, m := range []string{"gemini-omni-1.2-flash", "gemini-omni-1.1-flash", "gemini-omni-flash-preview"} {
+		if !IsModelSupportSystemInstruction(m) || !requiresV1Beta(m) {
+			t.Fatalf("%s capability or v1beta mismatch", m)
+		}
+	}
+	for _, m := range []string{"gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"} {
+		if !IsModelSupportTTS(m) || !requiresV1Beta(m) {
+			t.Fatalf("%s TTS capability or v1beta mismatch", m)
+		}
+	}
+
+	// Default voice Kore
+	req := model.GeneralOpenAIRequest{
+		Model:    "gemini-3.8-flash-tts",
+		Messages: []model.Message{{Role: "user", Content: "Hello"}},
+	}
+	out := ConvertRequest(req)
+	if len(out.GenerationConfig.ResponseModalities) != 1 || out.GenerationConfig.ResponseModalities[0] != "AUDIO" {
+		t.Fatalf("expected AUDIO modality, got %+v", out.GenerationConfig.ResponseModalities)
+	}
+	if out.GenerationConfig.SpeechConfig == nil || out.GenerationConfig.SpeechConfig.VoiceConfig.PrebuiltVoiceConfig.VoiceName != "Kore" {
+		t.Fatalf("expected default voice Kore, got %+v", out.GenerationConfig.SpeechConfig)
+	}
+
+	// Custom voice mapping
+	reqVoice := model.GeneralOpenAIRequest{
+		Model:    "gemini-3.8-flash-lite-tts",
+		Messages: []model.Message{{Role: "user", Content: "Hello"}},
+		Audio:    &model.Audio{Voice: "echo"},
+	}
+	outVoice := ConvertRequest(reqVoice)
+	if outVoice.GenerationConfig.SpeechConfig == nil || outVoice.GenerationConfig.SpeechConfig.VoiceConfig.PrebuiltVoiceConfig.VoiceName != "Charon" {
+		t.Fatalf("expected mapped voice Charon, got %+v", outVoice.GenerationConfig.SpeechConfig)
+	}
+}

@@ -92,6 +92,12 @@ type ChatGenerationConfig struct {
 	CandidateCount     int             `json:"candidateCount,omitempty"`
 	StopSequences      []string        `json:"stopSequences,omitempty"`
 	ThinkingConfig     *ThinkingConfig `json:"thinkingConfig,omitempty"`
+	ImageConfig        *ImageConfig    `json:"imageConfig,omitempty"`
+}
+
+type ImageConfig struct {
+	AspectRatio string `json:"aspectRatio,omitempty"`
+	ImageSize   string `json:"imageSize,omitempty"`
 }
 
 // ThinkingConfig: gemini-3.x 用 thinkingLevel，gemini-2.5 用 thinkingBudget，二者不能同时出现（否则 400）

@@ -65,16 +65,24 @@ var modelCapabilities = map[string]ModelCapability{
 	"gemini-4-carbon": {SystemInstruction: true},
 
 	// 生图模型 GA（Nano Banana 系列）
+	"gemini-nano-banana-2.1":      {SystemInstruction: true, ImageGeneration: true},
 	"gemini-2.5-flash-image":      {SystemInstruction: true, ImageGeneration: true},
 	"gemini-3-pro-image":          {SystemInstruction: true, ImageGeneration: true},
 	"gemini-3.1-flash-image":      {SystemInstruction: true, ImageGeneration: true},
 	"gemini-3.1-flash-lite-image": {SystemInstruction: true, ImageGeneration: true},
+
+	// Gemini Omni
+	"gemini-omni-1.2-flash":     {SystemInstruction: true},
+	"gemini-omni-1.1-flash":     {SystemInstruction: true},
+	"gemini-omni-flash-preview": {SystemInstruction: true},
 
 	// TTS
 	"gemini-2.5-flash-preview-tts": {TTS: true},
 	"gemini-2.5-pro-preview-tts":   {TTS: true},
 	"gemini-3.1-flash-tts":         {TTS: true},
 	"gemini-3.1-flash-tts-preview": {TTS: true},
+	"gemini-3.8-flash-tts":         {TTS: true},
+	"gemini-3.8-flash-lite-tts":    {TTS: true},
 }
 
 // IsModelSupportSystemInstruction reports whether the model accepts

@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/songquanpeng/one-api/relay/adaptor"
 	channelhelper "github.com/songquanpeng/one-api/relay/adaptor"
+	"github.com/songquanpeng/one-api/relay/channeltype"
 	"github.com/songquanpeng/one-api/relay/meta"
 	"github.com/songquanpeng/one-api/relay/model"
 	relaymodel "github.com/songquanpeng/one-api/relay/model"
@@ -58,14 +59,23 @@ func (a *Adaptor) GetChannelName() string {
 
 // GetRequestURL remove static prefix, and return the real request url to the upstream service
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
+	baseURL := strings.TrimSuffix(meta.BaseURL, "/")
+	if strings.HasPrefix(meta.RequestURLPath, "/v1/oneapi/proxy/") {
+		prefix := fmt.Sprintf("/v1/oneapi/proxy/%d", meta.ChannelId)
+		return baseURL + strings.TrimPrefix(meta.RequestURLPath, prefix), nil
+	}
+	if strings.HasPrefix(meta.RequestURLPath, "/v1beta/") || strings.HasPrefix(meta.RequestURLPath, "/upload/v1beta/") {
+		return baseURL + meta.RequestURLPath, nil
+	}
 	prefix := fmt.Sprintf("/v1/oneapi/proxy/%d", meta.ChannelId)
-	return meta.BaseURL + strings.TrimPrefix(meta.RequestURLPath, prefix), nil
-
+	return baseURL + strings.TrimPrefix(meta.RequestURLPath, prefix), nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	for k, v := range c.Request.Header {
-		req.Header.Set(k, v[0])
+		if len(v) > 0 {
+			req.Header.Set(k, v[0])
+		}
 	}
 
 	// remove unnecessary headers
@@ -73,9 +83,16 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *me
 	req.Header.Del("Content-Length")
 	req.Header.Del("Accept-Encoding")
 	req.Header.Del("Connection")
+	req.Header.Del("Authorization")
+	req.Header.Del("x-goog-api-key")
+	req.Header.Del("X-Goog-Api-Key")
 
-	// set authorization header
-	req.Header.Set("Authorization", meta.APIKey)
+	// set authentication header according to channel type / upstream URL
+	if meta.ChannelType == channeltype.Gemini || strings.Contains(meta.BaseURL, "googleapis.com") || (req.URL != nil && strings.Contains(req.URL.Host, "googleapis.com")) {
+		req.Header.Set("x-goog-api-key", meta.APIKey)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+meta.APIKey)
+	}
 
 	return nil
 }

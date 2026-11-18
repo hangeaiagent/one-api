@@ -56,14 +56,22 @@ var ModelList = []string{
 	"gemini-4-carbon",
 
 	// 生图模型 GA（Nano Banana 系列）
+	"gemini-nano-banana-2.1",
 	"gemini-2.5-flash-image",
 	"gemini-3-pro-image",
 	"gemini-3.1-flash-image",
 	"gemini-3.1-flash-lite-image",
+
+	// Gemini Omni (Interactions API / native video)
+	"gemini-omni-1.2-flash",
+	"gemini-omni-1.1-flash",
+	"gemini-omni-flash-preview",
 
 	// TTS models
 	"gemini-2.5-flash-preview-tts",
 	"gemini-2.5-pro-preview-tts",
 	"gemini-3.1-flash-tts",
 	"gemini-3.1-flash-tts-preview",
+	"gemini-3.8-flash-tts",
+	"gemini-3.8-flash-lite-tts",
 }

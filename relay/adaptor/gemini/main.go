@@ -69,6 +69,47 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *ChatRequest {
 	if IsModelSupportImageGeneration(textRequest.Model) {
 		geminiRequest.GenerationConfig.ResponseModalities = []string{"TEXT", "IMAGE"}
 	}
+	if IsModelSupportTTS(textRequest.Model) {
+		geminiRequest.GenerationConfig.ResponseModalities = []string{"AUDIO"}
+		voiceName := "Kore"
+		if textRequest.Audio != nil && textRequest.Audio.Voice != "" {
+			voiceName = mapOpenAIVoiceToGemini(textRequest.Audio.Voice)
+		}
+		geminiRequest.GenerationConfig.SpeechConfig = &SpeechConfig{
+			VoiceConfig: &VoiceConfig{
+				PrebuiltVoiceConfig: &PrebuiltVoiceConfig{
+					VoiceName: voiceName,
+				},
+			},
+		}
+	}
+	var aspectRatio, imageSize string
+	if textRequest.ImageConfig != nil {
+		if v, ok := textRequest.ImageConfig["aspect_ratio"].(string); ok && v != "" {
+			aspectRatio = v
+		} else if v, ok := textRequest.ImageConfig["aspectRatio"].(string); ok && v != "" {
+			aspectRatio = v
+		}
+		if v, ok := textRequest.ImageConfig["image_size"].(string); ok && v != "" {
+			imageSize = v
+		} else if v, ok := textRequest.ImageConfig["imageSize"].(string); ok && v != "" {
+			imageSize = v
+		} else if v, ok := textRequest.ImageConfig["resolution"].(string); ok && v != "" {
+			imageSize = v
+		}
+	}
+	if textRequest.AspectRatio != "" {
+		aspectRatio = textRequest.AspectRatio
+	}
+	if textRequest.ImageSize != "" {
+		imageSize = textRequest.ImageSize
+	}
+	if aspectRatio != "" || imageSize != "" {
+		geminiRequest.GenerationConfig.ImageConfig = &ImageConfig{
+			AspectRatio: aspectRatio,
+			ImageSize:   imageSize,
+		}
+	}
 	if textRequest.ReasoningEffort != nil {
 		geminiRequest.GenerationConfig.ThinkingConfig = buildThinkingConfig(textRequest.Model, *textRequest.ReasoningEffort)
 	}

@@ -17,6 +17,16 @@ func SetRelayRouter(router *gin.Engine) {
 		modelsRouter.GET("", controller.ListModels)
 		modelsRouter.GET("/:model", controller.RetrieveModel)
 	}
+	relayV1BetaRouter := router.Group("/v1beta")
+	relayV1BetaRouter.Use(middleware.RelayPanicRecover(), middleware.TokenAuth(), middleware.Distribute())
+	{
+		relayV1BetaRouter.Any("/*target", controller.Relay)
+	}
+	relayUploadV1BetaRouter := router.Group("/upload/v1beta")
+	relayUploadV1BetaRouter.Use(middleware.RelayPanicRecover(), middleware.TokenAuth(), middleware.Distribute())
+	{
+		relayUploadV1BetaRouter.Any("/*target", controller.Relay)
+	}
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RelayPanicRecover(), middleware.TokenAuth(), middleware.Distribute())
 	{

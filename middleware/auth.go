@@ -92,6 +92,12 @@ func TokenAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		key := c.Request.Header.Get("Authorization")
+		if key == "" {
+			key = c.Request.Header.Get("x-goog-api-key")
+		}
+		if key == "" {
+			key = c.Query("key")
+		}
 		key = strings.TrimPrefix(key, "Bearer ")
 		key = strings.TrimPrefix(key, "sk-")
 		parts := strings.Split(key, "-")
@@ -144,6 +150,10 @@ func TokenAuth() func(c *gin.Context) {
 		// set channel id for proxy relay
 		if channelId := c.Param("channelid"); channelId != "" {
 			c.Set(ctxkey.SpecificChannelId, channelId)
+		} else if strings.HasPrefix(c.Request.URL.Path, "/v1beta/") || strings.HasPrefix(c.Request.URL.Path, "/upload/v1beta/") {
+			if _, exists := c.Get(ctxkey.SpecificChannelId); !exists {
+				c.Set(ctxkey.SpecificChannelId, "1")
+			}
 		}
 
 		c.Next()
